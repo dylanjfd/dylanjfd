@@ -16,10 +16,6 @@
   <a href="https://dylanjfd.github.io/pages/contact.html"><img src="https://img.shields.io/badge/Contact-Rejoindre_l%27%C3%A9quipe-b79be0?style=for-the-badge&labelColor=0e1320" alt="Contact" /></a>
 </p>
 
-<p align="center">
-  <b>Technicien support & systèmes</b> · BTS SIO option SISR en alternance chez MyDigitalSchool (Nantes) · 2026 – 2028
-</p>
-
 ---
 
 ## <img src="assets/losange.svg" width="20" alt="" /> Arbre de talents

@@ -1,0 +1,4 @@
+Type,Product,Started Date,Completed Date,Description,Amount,Fee,Currency,State,Balance
+CARD_PAYMENT,Current,2026-10-14 10:22:01,2026-10-15 08:01:12,Spotify,-12.14,0.00,EUR,COMPLETED,320.11
+TOPUP,Current,2026-10-01 09:00:00,2026-10-01 09:00:05,Top-Up by *1234,200.00,0.00,EUR,COMPLETED,332.25
+CARD_PAYMENT,Current,2026-09-28 19:45:00,2026-09-29 08:00:00,"Restaurant Le Petit Zinc, Paris","-1,234.50",0.00,EUR,COMPLETED,132.25

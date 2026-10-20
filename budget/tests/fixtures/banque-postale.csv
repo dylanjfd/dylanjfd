@@ -1,0 +1,10 @@
+Numéro Compte   ;0123456X020
+Type            ;CCP
+Compte tenu en  ;euros
+Date            ;15/10/2026
+Solde (EUROS)   ;1 234,56
+Solde (FRANCS)  ;8 098,74
+
+Date;Libellé;Montant(EUROS);Montant(FRANCS)
+14/10/2026;"ACHAT CB AUCHAN 13.10.26 CARTE NUMERO 123";-54,20;-355,53
+11/10/2026;"PRELEVEMENT DE EDF CLIENTS PARTICULIERS";-68,00;-446,05

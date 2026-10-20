@@ -1,0 +1,4 @@
+dateOp;dateVal;label;category;categoryParent;supplierFound;amount;comment;accountNum;accountLabel;accountbalance
+2026-10-14;2026-10-14;"CARTE 13/10/26 UBER   *EATS CB*1234";"Restauration rapide";"Loisirs";"uber eats";-23,90;;00012345678;"BoursoBank";1234,56
+2026-10-12;2026-10-12;"VIR SEPA ACME SAS";"Salaire";"Revenus";"acme";2450,00;;00012345678;"BoursoBank";1258,46
+2026-10-11;2026-10-11;"PRLV SEPA SPOTIFY";"Abonnements";"Loisirs";"spotify";-12,14;;00012345678;"BoursoBank";-1191,54

@@ -172,6 +172,14 @@ describe('dépenses récurrentes', () => {
     expect(netflix.previousAmount).toBe(1349);
   });
 
+  it('garde la hausse signalée le mois suivant, puis l’oublie', () => {
+    const more = [...history, tx('2026-11-10', -1549, 'PRLV SEPA NETFLIX.COM')];
+    const next = detectRecurring(more, cats, '2026-11-28').find((i) => i.merchant === 'NETFLIX')!;
+    expect(next.increase).toBe(200);
+    const later = [...more, tx('2026-12-10', -1549, 'PRLV SEPA NETFLIX.COM'), tx('2027-01-10', -1549, 'PRLV SEPA NETFLIX.COM')];
+    expect(detectRecurring(later, cats, '2027-01-20').find((i) => i.merchant === 'NETFLIX')!.increase).toBe(0);
+  });
+
   it('charges fixes et revenus', () => {
     const s = summarizeRecurring(items, new Set());
     expect(s.chargesTotal).toBe(78000 + 1549 + 99 + 999);

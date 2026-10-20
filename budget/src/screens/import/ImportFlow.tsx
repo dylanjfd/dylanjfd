@@ -297,7 +297,7 @@ function PreviewStep({
   );
 }
 
-function DoneStep({ info, onUndo }: { info: DoneInfo; onUndo: () => void }) {
+function DoneStep({ info, onUndo, onAnother }: { info: DoneInfo; onUndo: () => void; onAnother: () => void }) {
   const navigate = useNavigate();
   const ym = currentMonth();
   const { list, map } = useCategories();
@@ -351,6 +351,9 @@ function DoneStep({ info, onUndo }: { info: DoneInfo; onUndo: () => void }) {
         <Link className="btn btn-block" to={`/operations?mois=${info.to.slice(0, 7)}`}>
           Voir les opérations
         </Link>
+        <button className="btn btn-block" onClick={onAnother}>
+          Importer un autre relevé
+        </button>
         <button className="btn btn-ghost btn-block" onClick={onUndo}>
           Annuler cet import
         </button>
@@ -520,7 +523,18 @@ export default function ImportFlow() {
         />
       )}
 
-      {step === 'done' && done && <DoneStep info={done} onUndo={undo} />}
+      {step === 'done' && done && (
+        <DoneStep
+          info={done}
+          onUndo={undo}
+          onAnother={() => {
+            setDone(null);
+            setSource(null);
+            setRows([]);
+            setStep('pick');
+          }}
+        />
+      )}
     </main>
   );
 }

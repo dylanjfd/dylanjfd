@@ -40,7 +40,7 @@ export function demoRows(today = todayISO()): { date: string; amountCents: numbe
     };
     const fromEnd = months.length - 1 - i;
 
-    add(28, i % 12 === 11 ? 310000 : 245000, `VIR SEPA RECU /DE ACME SAS /MOTIF SALAIRE ${MONTH_NAMES[Number(m.slice(5, 7)) - 1]}`);
+    add(28, m.endsWith('-12') ? 310000 : 245000, `VIR SEPA RECU /DE ACME SAS /MOTIF SALAIRE ${MONTH_NAMES[Number(m.slice(5, 7)) - 1]}`);
     add(5, -78000, 'PRLV SEPA SCI LES TILLEULS LOYER');
     add(10, -6800, 'PRLV SEPA EDF CLIENTS PARTICULIERS');
     add(12, -1599, 'PRLV SEPA FREE MOBILE');

@@ -1066,9 +1066,11 @@ a.row {
   gap: 12px;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
   animation: slide-up 0.25s ease;
+  pointer-events: none;
 }
 
 .toast button {
+  pointer-events: auto;
   margin-left: auto;
   background: none;
   border: 0;

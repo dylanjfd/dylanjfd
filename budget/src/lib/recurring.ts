@@ -13,6 +13,7 @@ export interface RecurringItem {
   occurrences: Pick<Transaction, 'id' | 'date' | 'amountCents'>[];
   /** Dernier montant (valeur absolue, en centimes). */
   amount: number;
+  /** Montant avant le dernier changement de prix (ou montant précédent). */
   previousAmount: number | null;
   /** Hausse du dernier montant par rapport au précédent (0 si aucune). */
   increase: number;
@@ -100,9 +101,12 @@ function evaluate(cluster: Transaction[], key: string, cats: CatMap, refDate: st
   if (days.filter((d) => dayDistance(d, day) <= 4).length / days.length < 0.75) return null;
 
   const last = occ[occ.length - 1];
-  const prev = occ[occ.length - 2];
   const amount = Math.abs(last.amountCents);
-  const previousAmount = Math.abs(prev.amountCents);
+  // Dernier changement de montant : la hausse reste signalée environ deux mois.
+  let k = occ.length - 2;
+  while (k > 0 && Math.abs(occ[k].amountCents) === amount) k--;
+  const previousAmount = Math.abs(occ[k].amountCents);
+  const changedRecently = diffDays(occ[k + 1].date, refDate) <= 62;
   // Avec deux occurrences seulement, on exige un montant quasi identique.
   if (occ.length === 2 && Math.abs(amount - previousAmount) > previousAmount * 0.03) return null;
   if (diffDays(last.date, refDate) > STALE_DAYS) return null;
@@ -115,7 +119,7 @@ function evaluate(cluster: Transaction[], key: string, cats: CatMap, refDate: st
   }
 
   const diff = amount - previousAmount;
-  const increase = diff >= Math.max(10, previousAmount * 0.01) ? diff : 0;
+  const increase = changedRecently && diff >= Math.max(10, previousAmount * 0.01) ? diff : 0;
 
   return {
     key,

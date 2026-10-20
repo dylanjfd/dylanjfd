@@ -22,6 +22,19 @@ const compactEUR = (cents: number) => {
   return `${Math.round(v)} €`;
 };
 
+/** Graduations rondes (1, 2, 2,5 ou 5 × 10ⁿ €) couvrant la valeur maximale. */
+function niceTicks(maxCents: number, count = 4): number[] {
+  const max = Math.max(maxCents / 100, 1);
+  const raw = max / count;
+  const pow = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 2.5, 5, 10].map((m) => m * pow).find((s) => s >= raw)!;
+  const ticks: number[] = [];
+  for (let v = 0; v < max + step; v += step) ticks.push(Math.round(v * 100));
+  return ticks;
+}
+
+const MONTH_INITIALS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
+
 interface Slice {
   id: number | null;
   name: string;
@@ -95,7 +108,8 @@ function Charts() {
 
     const months = monthRange(first, month);
     const byMonth = totalsByMonth(kept, months, map);
-    const series = months.map((ym) => ({ ym, label: formatMonthShort(ym).replace('.', ''), ...byMonth.get(ym)! }));
+    const series = months.map((ym) => ({ ym, label: MONTH_INITIALS[Number(ym.slice(5, 7)) - 1], ...byMonth.get(ym)! }));
+    const ticks = niceTicks(Math.max(0, ...series.map((s) => Math.max(s.income, s.expenses))));
 
     const prev = monthRange(addMonths(month, -3), addMonths(month, -1));
     const { average, monthCount } = averageSpending(kept, prev, map);
@@ -106,7 +120,7 @@ function Charts() {
       .sort((a, b) => Math.abs(b.current - b.avg) - Math.abs(a.current - a.avg));
     const avgTotal = [...average.values()].reduce((s, v) => s + Math.max(0, v), 0);
 
-    return { slices, total, series, comparison, monthCount, avgTotal, merchants: topMerchants(monthTxs, map, 8) };
+    return { slices, total, series, ticks, comparison, monthCount, avgTotal, merchants: topMerchants(monthTxs, map, 8) };
   }, [txs, filter, month, map, mode, first, chrome.unclassified]);
 
   if (!txs) return null;
@@ -186,7 +200,10 @@ function Charts() {
 
           <section className="card chart-card" style={{ marginTop: 12 }}>
             <h3>Dépenses et revenus sur 12 mois</h3>
-            <p className="chart-sub">Touchez un mois pour l’afficher</p>
+            <p className="chart-sub">
+              {formatMonthShort(data.series[0].ym)} {data.series[0].ym.slice(0, 4)} à {formatMonthShort(month)} {month.slice(0, 4)} ·
+              touchez un mois pour l’afficher
+            </p>
             <div className="legend-inline">
               <span>
                 <span className="swatch" style={{ background: colorHex('blue', mode) }} /> Revenus
@@ -215,6 +232,8 @@ function Charts() {
                     interval={0}
                   />
                   <YAxis
+                    ticks={data.ticks}
+                    domain={[0, data.ticks[data.ticks.length - 1]]}
                     tickFormatter={compactEUR}
                     tickLine={false}
                     axisLine={false}

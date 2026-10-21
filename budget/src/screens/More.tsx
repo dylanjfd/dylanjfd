@@ -61,7 +61,7 @@ export default function More() {
 
       <div className="section-title">Données</div>
       <div className="list">
-        <LinkRow to="/import" icon={<Upload size={20} />} title="Importer un relevé" sub="CSV ou OFX" />
+        <LinkRow to="/import" icon={<Upload size={20} />} title="Importer un relevé" sub="CSV, OFX ou PDF" />
         <LinkRow
           to="/plus/imports"
           icon={<History size={20} />}

@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { CircleCheck, FileUp, OctagonAlert, ShieldCheck, TriangleAlert } from 'lucide-react';
+import { CircleCheck, FileText, FileUp, OctagonAlert, ShieldCheck, TriangleAlert } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { CategoryPicker, RulePrompt } from '../../components/transactions';
@@ -16,7 +16,7 @@ import { matchesPattern } from '../../lib/rules';
 import { spendingByCategory } from '../../lib/stats';
 import { prettyMerchant } from '../../lib/text';
 import { MappingStep } from './MappingStep';
-import { buildPreview, defaultProfileName, findProfile, ImportError, readStatement, type PreviewRow, type Source } from './model';
+import { buildPreview, defaultProfileName, findProfile, ImportError, invertItems, readStatement, type PreviewRow, type Source } from './model';
 
 type Step = 'pick' | 'mapping' | 'preview' | 'done';
 
@@ -55,7 +55,7 @@ function PickStep({ onFile, error, busy }: { onFile: (f: File) => void; error: s
       <button className="drop" onClick={() => input.current?.click()} disabled={busy}>
         <FileUp size={40} />
         <strong>{busy ? 'Lecture du fichier…' : 'Choisir un relevé'}</strong>
-        <span className="small muted">Fichier CSV ou OFX exporté depuis l’espace client de votre banque</span>
+        <span className="small muted">Relevé CSV, OFX ou PDF téléchargé depuis l’espace client de votre banque</span>
       </button>
       <input
         ref={input}
@@ -93,6 +93,10 @@ function PickStep({ onFile, error, busy }: { onFile: (f: File) => void; error: s
           « Relevé d’opérations » et choisissez le format <strong>CSV</strong> (ou Excel/CSV) ou <strong>OFX</strong>{' '}
           (parfois appelé « Money »). Choisissez une période d’un ou plusieurs mois : les opérations déjà importées seront
           ignorées.
+          <br />
+          <br />
+          Vos <strong>relevés PDF</strong> mensuels sont aussi acceptés (rubrique « e-Documents » ou « Relevés »). Le CSV
+          reste le plus fiable ; un PDF scanné (photo) ne peut pas être lu.
         </div>
       </div>
     </>
@@ -106,6 +110,7 @@ function PreviewStep({
   accountId,
   onAccount,
   onEditMapping,
+  onInvertAll,
   onCommit,
   busy,
 }: {
@@ -115,6 +120,7 @@ function PreviewStep({
   accountId: number;
   onAccount: (id: number) => void;
   onEditMapping?: () => void;
+  onInvertAll?: () => void;
   onCommit: () => void;
   busy: boolean;
 }) {
@@ -192,6 +198,11 @@ function PreviewStep({
             <span className="small muted">doublons probables</span>
           </div>
         </div>
+        {source.kind !== 'csv' && source.skipped > 0 && (
+          <p className="small muted" style={{ marginTop: 8 }}>
+            {plural(source.skipped, 'ligne datée sans montant ignorée', 'lignes datées sans montant ignorées')}
+          </p>
+        )}
         {onEditMapping && (
           <button className="btn btn-ghost btn-sm btn-block" style={{ marginTop: 8 }} onClick={onEditMapping}>
             Modifier la correspondance des colonnes
@@ -210,6 +221,21 @@ function PreviewStep({
             ))}
           </select>
         </label>
+      )}
+
+      {source.kind === 'pdf' && (
+        <Notice tone="info" icon={<FileText size={20} />} title="Relevé PDF lu automatiquement">
+          <div className="small muted">
+            Vérifiez les montants et leur sens (dépense ou revenu). Touchez une catégorie pour corriger une opération.
+          </div>
+          {onInvertAll && (
+            <div className="notice-actions">
+              <button className="btn btn-sm" onClick={onInvertAll}>
+                Dépenses et revenus inversés ? Tout inverser
+              </button>
+            </div>
+          )}
+        </Notice>
       )}
 
       {counts.probable > 0 && (
@@ -278,7 +304,33 @@ function PreviewStep({
           (suggest ? (
             <RulePrompt merchant={suggest.merchant} category={suggest.category} onDone={ruleCreated} />
           ) : (
-            <CategoryPicker categories={list} value={editingRow.categoryId} onPick={pick} sign={editingRow.amountCents} allowNone />
+            <>
+              <div style={{ textAlign: 'center', marginBottom: 12 }}>
+                <div style={{ fontSize: 28, fontWeight: 750 }}>
+                  <Amount cents={editingRow.amountCents} />
+                </div>
+                <div className="small muted">
+                  {formatDate(editingRow.date)} · {editingRow.label}
+                </div>
+              </div>
+              <Segmented
+                options={[
+                  { value: 'expense', label: 'Dépense' },
+                  { value: 'income', label: 'Revenu' },
+                ]}
+                value={editingRow.amountCents < 0 ? 'expense' : 'income'}
+                onChange={(v) =>
+                  setRows((rs) =>
+                    rs.map((r) =>
+                      r.key === editingRow.key
+                        ? { ...r, amountCents: v === 'expense' ? -Math.abs(r.amountCents) : Math.abs(r.amountCents) }
+                        : r,
+                    ),
+                  )
+                }
+              />
+              <CategoryPicker categories={list} value={editingRow.categoryId} onPick={pick} sign={editingRow.amountCents} allowNone />
+            </>
           ))}
       </Sheet>
 
@@ -378,7 +430,7 @@ export default function ImportFlow() {
   const account = accountId ?? accounts[0]?.id ?? 1;
 
   async function preview(src: Source, mapping: CsvMapping | null, acc: number) {
-    const items = src.kind === 'ofx' ? src.items : applyMapping(src.analysis.rows, mapping!).items;
+    const items = src.kind === 'csv' ? applyMapping(src.analysis.rows, mapping!).items : src.items;
     setRows(await buildPreview(items, acc));
     setStep('preview');
   }
@@ -389,7 +441,7 @@ export default function ImportFlow() {
     try {
       const src = await readStatement(file);
       setSource(src);
-      if (src.kind === 'ofx') {
+      if (src.kind !== 'csv') {
         setProfile(null);
         await preview(src, null, account);
         return;
@@ -408,8 +460,11 @@ export default function ImportFlow() {
         setStep('mapping');
       }
     } catch (e) {
-      setError(e instanceof ImportError ? e.message : 'Ce fichier n’a pas pu être lu.');
-      console.error(e);
+      if (e instanceof ImportError) setError(e.message);
+      else {
+        setError('Ce fichier n’a pas pu être lu.');
+        console.error(e);
+      }
     } finally {
       setBusy(false);
     }
@@ -518,6 +573,15 @@ export default function ImportFlow() {
           accountId={account}
           onAccount={changeAccount}
           onEditMapping={source.kind === 'csv' ? () => setStep('mapping') : undefined}
+          onInvertAll={
+            source.kind === 'pdf'
+              ? () => {
+                  const inverted = { ...source, items: invertItems(source.items) };
+                  setSource(inverted);
+                  void preview(inverted, null, account);
+                }
+              : undefined
+          }
           onCommit={commit}
           busy={busy}
         />

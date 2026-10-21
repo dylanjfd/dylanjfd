@@ -39,12 +39,17 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png,webmanifest}'],
+        globPatterns: ['**/*.{js,mjs,css,html,svg,png,webmanifest}'],
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         navigateFallback: 'index.html',
         cleanupOutdatedCaches: true,
       },
     }),
   ],
+  // Le worker de pdf.js est construit en module ES (fichier .js servi partout avec le bon type).
+  worker: {
+    format: 'es',
+  },
   test: {
     environment: 'node',
     include: ['tests/**/*.test.ts'],

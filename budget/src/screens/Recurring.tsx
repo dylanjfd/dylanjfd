@@ -1,5 +1,6 @@
 import { TrendingUp } from 'lucide-react';
 import { useState } from 'react';
+import { Loading } from '../components/Loading';
 import { Amount, CatIcon, Empty, Notice, Sheet } from '../components/ui';
 import { db } from '../db/schema';
 import { useCategories, useRecurring, useResteAVivre } from '../hooks/useData';
@@ -96,7 +97,7 @@ export default function Recurring() {
   const rav = useResteAVivre();
   const [open, setOpen] = useState<RecurringItem | null>(null);
   const [showIgnored, setShowIgnored] = useState(false);
-  if (!data || !rav) return null;
+  if (!data || !rav) return <Loading />;
   const { summary, items, ignored } = data;
   const ignoredItems = items.filter((i) => ignored.has(i.key));
   const increases = summary.charges.filter((i) => i.increase > 0);

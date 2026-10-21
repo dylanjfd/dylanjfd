@@ -22,6 +22,11 @@ hors ligne.
   avant le tableau, virgule décimale, colonnes Débit/Crédit séparées ou une seule colonne Montant, libellés sur
   plusieurs lignes, dates JJ/MM/AAAA, AAAA-MM-JJ…
 - **OFX / QFX** (versions 1.x SGML et 2.x XML), avec l’identifiant unique de chaque opération.
+- **PDF** : relevés de compte mensuels (texte lu sur le téléphone avec pdf.js, chargé seulement à ce moment-là).
+  Le tableau est reconstitué à partir de la position du texte : date (avec ou sans année), libellé sur plusieurs
+  lignes, colonnes Débit/Crédit ou montant signé ; les lignes de solde et de totaux sont ignorées. PDF protégés par
+  mot de passe acceptés ; les PDF scannés (images) ne peuvent pas être lus. L’aperçu permet d’inverser le sens d’une
+  opération ou de tout le relevé si besoin.
 - **Correspondance des colonnes** au premier import d’un format, mémorisée pour les suivants (reconnaissance par les
   en-têtes du fichier).
 - **Aperçu** avant validation, catégories modifiables ligne par ligne.
@@ -31,7 +36,7 @@ hors ligne.
 - **Annulation** d’un import entier depuis l’historique.
 
 Formats testés (voir `tests/fixtures`) : Société Générale, Crédit Agricole, BoursoBank, La Banque Postale, LCL,
-Revolut, OFX génériques. Les autres banques passent par l’écran de correspondance des colonnes.
+Revolut, OFX génériques, et des relevés PDF de plusieurs mises en page (Débit/Crédit, dates sans année, montant signé). Les autres banques passent par l’écran de correspondance des colonnes.
 
 ### Catégorisation
 
@@ -100,4 +105,5 @@ français (`1 234,56 €`, `JJ/MM/AAAA`).
 - Pas de synchronisation bancaire automatique : il faut importer les relevés (choix volontaire, aucun serveur).
 - Les alertes de budget s’affichent dans l’application : une PWA sans serveur ne peut pas envoyer de notifications
   fiables.
-- Les relevés PDF et Excel (.xls/.xlsx) ne sont pas lus : exporter en CSV ou OFX depuis la banque.
+- Les relevés Excel (.xls/.xlsx) et les PDF scannés ne sont pas lus : exporter en CSV, OFX ou PDF texte depuis la banque.
+- La lecture des PDF repose sur la mise en page : sur un format inhabituel, vérifier l’aperçu avant d’importer.

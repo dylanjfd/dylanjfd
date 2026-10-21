@@ -16,7 +16,8 @@ export interface PreviewRow extends Draft {
 
 export type Source =
   | { kind: 'csv'; fileName: string; encoding: Encoding; analysis: CsvAnalysis }
-  | { kind: 'ofx'; fileName: string; encoding: Encoding; items: ParsedRow[]; skipped: number };
+  | { kind: 'ofx'; fileName: string; encoding: Encoding; items: ParsedRow[]; skipped: number }
+  | { kind: 'pdf'; fileName: string; items: ParsedRow[]; skipped: number };
 
 export class ImportError extends Error {}
 
@@ -24,13 +25,34 @@ function sniffBinary(bytes: Uint8Array): string | null {
   const head = Array.from(bytes.slice(0, 4));
   if (head[0] === 0x50 && head[1] === 0x4b) return 'Ce fichier est un classeur Excel (.xlsx). Exportez plutôt votre relevé au format CSV ou OFX depuis l’espace client de votre banque.';
   if (head[0] === 0xd0 && head[1] === 0xcf) return 'Ce fichier est un classeur Excel (.xls). Exportez plutôt votre relevé au format CSV ou OFX.';
-  if (head[0] === 0x25 && head[1] === 0x50 && head[2] === 0x44 && head[3] === 0x46)
-    return 'Les relevés PDF ne peuvent pas être lus. Exportez votre relevé au format CSV ou OFX depuis l’espace client de votre banque.';
   return null;
+}
+
+const isPdf = (bytes: Uint8Array) => new TextDecoder().decode(bytes.slice(0, 1024)).includes('%PDF-');
+
+async function readPdf(file: File, bytes: Uint8Array): Promise<Source> {
+  // pdf.js (plus d'1 Mo) n'est chargé que pour les relevés PDF.
+  const { readPdfStatement, PdfReadError } = await import('../../lib/import/pdfReader');
+  try {
+    const { items, skipped } = await readPdfStatement(bytes, () =>
+      prompt('Ce PDF est protégé. Saisissez son mot de passe (il n’est pas enregistré) :'),
+    );
+    if (items.length === 0)
+      throw new ImportError(
+        'Aucune opération reconnue dans ce PDF. Vérifiez qu’il s’agit bien d’un relevé de compte, ou exportez-le en CSV depuis votre banque.',
+      );
+    return { kind: 'pdf', fileName: file.name, items, skipped };
+  } catch (e) {
+    if (e instanceof ImportError) throw e;
+    if (e instanceof PdfReadError) throw new ImportError(e.message);
+    console.error(e);
+    throw new ImportError('Ce PDF n’a pas pu être lu (fichier abîmé ou format non pris en charge).');
+  }
 }
 
 export async function readStatement(file: File): Promise<Source> {
   const bytes = new Uint8Array(await file.arrayBuffer());
+  if (isPdf(bytes)) return readPdf(file, bytes);
   const binary = sniffBinary(bytes);
   if (binary) throw new ImportError(binary);
   const { text, encoding } = decodeText(bytes);
@@ -66,6 +88,11 @@ export async function buildPreview(items: ParsedRow[], accountId: number): Promi
   return drafts
     .map((d, i) => ({ ...d, key: i, status: statuses[i], selected: statuses[i] === 'new' }))
     .sort((a, b) => b.date.localeCompare(a.date) || a.key - b.key);
+}
+
+/** Inverse le sens (débit ↔ crédit) d'opérations lues dans un PDF ambigu. */
+export function invertItems(items: ParsedRow[]): ParsedRow[] {
+  return items.map((i) => ({ ...i, amountCents: -i.amountCents }));
 }
 
 export function defaultProfileName(fileName: string): string {

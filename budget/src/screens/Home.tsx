@@ -42,7 +42,7 @@ function Welcome() {
       <img src={`${import.meta.env.BASE_URL}icons/pwa-192x192.png`} alt="" />
       <h2>Bienvenue 👋</h2>
       <p>
-        Importez le relevé CSV ou OFX de votre banque pour commencer. Tout reste sur ce téléphone&nbsp;: aucune donnée
+        Importez un relevé de votre banque (CSV, OFX ou PDF) pour commencer. Tout reste sur ce téléphone&nbsp;: aucune donnée
         n’est envoyée sur Internet.
       </p>
       <div className="stack">
@@ -136,7 +136,7 @@ export default function Home() {
           <Upload size={24} />
           <div className="row-main">
             <div>Importer un relevé</div>
-            <div className="row-sub">CSV ou OFX exporté depuis votre banque</div>
+            <div className="row-sub">CSV, OFX ou PDF de votre banque</div>
           </div>
           <ChevronRight size={20} />
         </button>

@@ -16,7 +16,7 @@ import { matchesPattern } from '../../lib/rules';
 import { spendingByCategory } from '../../lib/stats';
 import { prettyMerchant } from '../../lib/text';
 import { MappingStep } from './MappingStep';
-import { buildPreview, defaultProfileName, findProfile, ImportError, invertItems, readStatement, type PreviewRow, type Source } from './model';
+import { buildPreview, defaultProfileName, findProfile, ImportError, invertItems, readStatements, type PreviewRow, type Source } from './model';
 
 type Step = 'pick' | 'mapping' | 'preview' | 'done';
 
@@ -47,24 +47,37 @@ function Steps({ step }: { step: Step }) {
   );
 }
 
-function PickStep({ onFile, error, busy }: { onFile: (f: File) => void; error: string | null; busy: boolean }) {
+function PickStep({
+  onFiles,
+  error,
+  busy,
+  progress,
+}: {
+  onFiles: (files: File[]) => void;
+  error: string | null;
+  busy: boolean;
+  progress: string | null;
+}) {
   const input = useRef<HTMLInputElement>(null);
   const profiles = useLiveQuery(() => db.importProfiles.orderBy('id').toArray(), []);
   return (
     <>
       <button className="drop" onClick={() => input.current?.click()} disabled={busy}>
         <FileUp size={40} />
-        <strong>{busy ? 'Lecture du fichier…' : 'Choisir un relevé'}</strong>
-        <span className="small muted">Relevé CSV, OFX ou PDF téléchargé depuis l’espace client de votre banque</span>
+        <strong>{busy ? (progress ?? 'Lecture du fichier…') : 'Choisir un relevé'}</strong>
+        <span className="small muted">
+          Relevé CSV, OFX ou PDF, ou captures d’écran (JPG, PNG) : vous pouvez en choisir plusieurs
+        </span>
       </button>
       <input
         ref={input}
         type="file"
+        multiple
         hidden
         onChange={(e) => {
-          const f = e.target.files?.[0];
+          const files = [...(e.target.files ?? [])];
           e.target.value = '';
-          if (f) onFile(f);
+          if (files.length) onFiles(files);
         }}
       />
       {error && <Notice tone="over" icon={<OctagonAlert size={20} />} title={error} />}
@@ -96,8 +109,12 @@ function PickStep({ onFile, error, busy }: { onFile: (f: File) => void; error: s
           <br />
           <br />
           Vos <strong>relevés PDF</strong> mensuels sont aussi acceptés (rubrique « e-Documents » ou « Relevés »), y compris
-          ceux du Crédit Agricole qui regroupent plusieurs comptes. Le CSV reste le plus fiable ; un PDF scanné (photo) ne
-          peut pas être lu.
+          ceux du Crédit Agricole qui regroupent plusieurs comptes.
+          <br />
+          <br />
+          Vous pouvez aussi importer des <strong>captures d’écran</strong> de la liste des opérations de votre appli
+          bancaire, ou des photos nettes d’un relevé : choisissez-en plusieurs d’un coup si vous avez fait défiler la liste,
+          les opérations en double sont écartées. Le texte est reconnu sur le téléphone ; le CSV reste le plus fiable.
         </div>
       </div>
     </>
@@ -128,7 +145,7 @@ function PreviewStep({
   const { list, map } = useCategories();
   const accounts = useAccounts();
   const [filter, setFilter] = useState<'selected' | 'duplicates' | 'all'>('selected');
-  const sections = source.kind === 'pdf' ? source.sections : [];
+  const sections = source.kind === 'pdf' || source.kind === 'image' ? source.sections : [];
   const [section, setSection] = useState(sections[0] ?? '');
   const chooseSection = (s: string) => {
     setSection(s);
@@ -244,10 +261,16 @@ function PreviewStep({
         </label>
       )}
 
-      {source.kind === 'pdf' && (
-        <Notice tone="info" icon={<FileText size={20} />} title="Relevé PDF lu automatiquement">
+      {(source.kind === 'pdf' || source.kind === 'image') && (
+        <Notice
+          tone={source.kind === 'image' ? 'warn' : 'info'}
+          icon={<FileText size={20} />}
+          title={source.kind === 'image' ? 'Lu par reconnaissance de texte' : 'Relevé PDF lu automatiquement'}
+        >
           <div className="small muted">
-            Vérifiez les montants et leur sens (dépense ou revenu). Touchez une catégorie pour corriger une opération.
+            {source.kind === 'image'
+              ? 'Vérifiez chaque date et chaque montant : la lecture d’une image peut confondre certains chiffres. Touchez une catégorie pour corriger une opération.'
+              : 'Vérifiez les montants et leur sens (dépense ou revenu). Touchez une catégorie pour corriger une opération.'}
           </div>
           {onInvertAll && (
             <div className="notice-actions">
@@ -447,6 +470,7 @@ export default function ImportFlow() {
   const [accountId, setAccountId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState<string | null>(null);
   const [done, setDone] = useState<DoneInfo | null>(null);
 
   const account = accountId ?? accounts[0]?.id ?? 1;
@@ -455,18 +479,19 @@ export default function ImportFlow() {
     const items = src.kind === 'csv' ? applyMapping(src.analysis.rows, mapping!).items : src.items;
     let built = await buildPreview(items, acc);
     // Relevé PDF regroupant plusieurs comptes : seul le premier (le compte courant) est coché.
-    if (src.kind === 'pdf' && src.sections.length > 1)
+    if ((src.kind === 'pdf' || src.kind === 'image') && src.sections.length > 1)
       built = built.map((r) => (r.section === src.sections[0] ? r : { ...r, selected: false }));
     setRows(built);
     setPreviewVersion((v) => v + 1);
     setStep('preview');
   }
 
-  async function onFile(file: File) {
+  async function onFiles(files: File[]) {
     setError(null);
     setBusy(true);
+    setProgress(null);
     try {
-      const src = await readStatement(file);
+      const src = await readStatements(files, setProgress);
       setSource(src);
       if (src.kind !== 'csv') {
         setProfile(null);
@@ -483,7 +508,7 @@ export default function ImportFlow() {
         await preview(src, mapping, acc);
         toast(`Format « ${known.name} » reconnu`);
       } else {
-        setProfile({ name: defaultProfileName(file.name), mapping: src.analysis.guess, remember: true });
+        setProfile({ name: defaultProfileName(files[0].name), mapping: src.analysis.guess, remember: true });
         setStep('mapping');
       }
     } catch (e) {
@@ -494,6 +519,7 @@ export default function ImportFlow() {
       }
     } finally {
       setBusy(false);
+      setProgress(null);
     }
   }
 
@@ -576,7 +602,7 @@ export default function ImportFlow() {
       </header>
       <Steps step={step} />
 
-      {step === 'pick' && <PickStep onFile={onFile} error={error} busy={busy} />}
+      {step === 'pick' && <PickStep onFiles={onFiles} error={error} busy={busy} progress={progress} />}
 
       {step === 'mapping' && source?.kind === 'csv' && profile && (
         <MappingStep
@@ -602,7 +628,7 @@ export default function ImportFlow() {
           onAccount={changeAccount}
           onEditMapping={source.kind === 'csv' ? () => setStep('mapping') : undefined}
           onInvertAll={
-            source.kind === 'pdf'
+            source.kind === 'pdf' || source.kind === 'image'
               ? () => {
                   const inverted = { ...source, items: invertItems(source.items) };
                   setSource(inverted);

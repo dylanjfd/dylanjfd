@@ -1,11 +1,13 @@
 {
   "name": "mon-budget",
   "private": true,
-  "version": "1.2.1",
+  "version": "1.3.0",
   "description": "PWA de gestion de budget personnel, 100 % locale",
   "type": "module",
   "scripts": {
+    "predev": "node scripts/copy-ocr.mjs",
     "dev": "vite",
+    "prebuild": "node scripts/copy-ocr.mjs",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
@@ -20,9 +22,11 @@
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-router-dom": "^7.18.4",
-    "recharts": "^3.10.1"
+    "recharts": "^3.10.1",
+    "tesseract.js": "^7.0.0"
   },
   "devDependencies": {
+    "@tesseract.js-data/fra": "^1.0.0",
     "@types/node": "^22.20.5",
     "@types/papaparse": "^5.5.2",
     "@types/react": "^19.3.0",

@@ -6,6 +6,8 @@ import { groupLines, parsePdfStatement, textItems, type PdfLine } from './pdfSta
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
 
 export class PdfReadError extends Error {}
+/** PDF sans texte (scan) : il faut passer par la reconnaissance de texte. */
+export class PdfNoTextError extends PdfReadError {}
 
 /** Lignes de texte positionnées de toutes les pages du PDF. */
 export async function extractPdfLines(data: Uint8Array, password?: string): Promise<PdfLine[]> {
@@ -32,9 +34,7 @@ export async function readPdfStatement(data: Uint8Array, askPassword: () => stri
       const lines = await extractPdfLines(data.slice(), password);
       const textLength = lines.reduce((n, l) => n + l.cells.reduce((m, c) => m + c.text.length, 0), 0);
       if (textLength < 40)
-        throw new PdfReadError(
-          'Ce PDF ne contient pas de texte (relevé scanné ou photo) : il ne peut pas être lu. Téléchargez le relevé depuis l’espace client de votre banque, ou exportez-le en CSV.',
-        );
+        throw new PdfNoTextError('Ce PDF ne contient pas de texte (relevé scanné ou photo).');
       return parsePdfStatement(lines);
     } catch (e) {
       if ((e as { name?: string }).name === 'PasswordException' && attempt < 3) {
@@ -46,4 +46,25 @@ export async function readPdfStatement(data: Uint8Array, askPassword: () => stri
       throw e;
     }
   }
+}
+
+/** Pages d'un PDF scanné dessinées en images, pour la reconnaissance de texte (10 pages au plus). */
+export async function renderPdfPages(data: Uint8Array, password?: string): Promise<HTMLCanvasElement[]> {
+  const doc = await pdfjs.getDocument({ data: data.slice(), password }).promise;
+  const canvases: HTMLCanvasElement[] = [];
+  try {
+    for (let p = 1; p <= Math.min(doc.numPages, 10); p++) {
+      const page = await doc.getPage(p);
+      const base = page.getViewport({ scale: 1 });
+      const viewport = page.getViewport({ scale: Math.min(3, 2000 / base.width) });
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(viewport.width);
+      canvas.height = Math.round(viewport.height);
+      await page.render({ canvas, viewport }).promise;
+      canvases.push(canvas);
+    }
+  } finally {
+    void doc.loadingTask.destroy();
+  }
+  return canvases;
 }

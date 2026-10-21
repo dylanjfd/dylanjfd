@@ -3,7 +3,7 @@ import { useRef, useState } from 'react';
 import { useToast } from '../components/toast';
 import { Header, Notice } from '../components/ui';
 import { useSetting } from '../hooks/useData';
-import { setSetting } from '../lib/actions';
+import { setSetting, upgradeClassification } from '../lib/actions';
 import { backupFileName, backupStats, buildBackup, parseBackup, restoreBackup, saveFile } from '../lib/backup';
 import { formatDate, plural } from '../lib/format';
 
@@ -42,6 +42,7 @@ export default function Backup() {
         return;
       setBusy(true);
       await restoreBackup(backup);
+      await upgradeClassification().catch(() => 0);
       toast('Sauvegarde restaurée');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Restauration impossible');

@@ -7,7 +7,7 @@ import { useToast } from '../../components/toast';
 import { Amount, BudgetBadge, CatChip, CatIcon, Notice, Progress, Segmented, Sheet } from '../../components/ui';
 import { db, type Category, type CsvMapping } from '../../db/schema';
 import { useAccounts, useBudgetFilter, useCategories, useMonthTransactions } from '../../hooks/useData';
-import { commitImport, undoImport } from '../../lib/actions';
+import { commitImport, reapplyRules, undoImport } from '../../lib/actions';
 import { budgetLines } from '../../lib/budget';
 import { currentMonth, todayISO } from '../../lib/dates';
 import { formatDate, formatEUR, plural } from '../../lib/format';
@@ -160,6 +160,7 @@ function PreviewStep({
       duplicate: rows.filter((r) => r.status === 'duplicate').length,
       probable: rows.filter((r) => r.status === 'probable').length,
       uncategorized: rows.filter((r) => r.selected && r.categoryId == null).length,
+      guessed: rows.filter((r) => r.selected && r.categorySource === 'auto').length,
     }),
     [rows],
   );
@@ -179,8 +180,22 @@ function PreviewStep({
 
   function pick(id: number | null) {
     if (!editingRow) return;
+    // Les autres opérations du même commerçant, pas encore choisies à la main, suivent.
+    const follows = (r: PreviewRow) =>
+      id != null &&
+      !!editingRow.merchant &&
+      r.merchant === editingRow.merchant &&
+      Math.sign(r.amountCents) === Math.sign(editingRow.amountCents) &&
+      r.categorySource !== 'manual' &&
+      r.categorySource !== 'rule';
     setRows((rs) =>
-      rs.map((r) => (r.key === editingRow.key ? { ...r, categoryId: id, categorySource: id == null ? 'none' : 'manual' } : r)),
+      rs.map((r) =>
+        r.key === editingRow.key
+          ? { ...r, categoryId: id, categorySource: 'manual' }
+          : follows(r)
+            ? { ...r, categoryId: id, categorySource: 'auto' }
+            : r,
+      ),
     );
     const cat = id != null ? map.get(id) : undefined;
     if (cat && editingRow.merchant) setSuggest({ merchant: editingRow.merchant, category: cat });
@@ -326,6 +341,7 @@ function PreviewStep({
                   </div>
                   <div className="meta">
                     <CatChip category={r.categoryId != null ? map.get(r.categoryId) : undefined} onClick={() => setEditing(r.key)} />
+                    {r.categorySource === 'auto' && r.categoryId != null && <span className="status info">Devinée</span>}
                     {r.status === 'duplicate' && <span className="status neutral">Déjà importée</span>}
                     {r.status === 'probable' && (
                       <span className="status warn">
@@ -382,6 +398,7 @@ function PreviewStep({
         <div>
           <div className="small muted" style={{ textAlign: 'center', marginBottom: 8 }}>
             {formatEUR(selectedTotals.out)} · {formatEUR(selectedTotals.inc, { sign: true })}
+            {counts.guessed > 0 && ` · ${plural(counts.guessed, 'devinée', 'devinées')}`}
             {counts.uncategorized > 0 && ` · ${counts.uncategorized} à classer`}
           </div>
           <button className="btn btn-primary btn-block" disabled={busy || counts.selected === 0} onClick={onCommit}>
@@ -399,6 +416,7 @@ function DoneStep({ info, onUndo, onAnother }: { info: DoneInfo; onUndo: () => v
   const { list, map } = useCategories();
   const filter = useBudgetFilter();
   const monthTxs = useMonthTransactions(ym);
+  const todo = useLiveQuery(() => db.transactions.where('batchId').equals(info.batchId).filter((t) => t.categoryId == null).count(), [info.batchId]);
   const alerts = useMemo(
     () =>
       info.to >= `${ym}-01`
@@ -441,7 +459,12 @@ function DoneStep({ info, onUndo, onAnother }: { info: DoneInfo; onUndo: () => v
         </div>
       )}
       <div className="stack section">
-        <button className="btn btn-primary btn-block" onClick={() => navigate('/')}>
+        {!!todo && (
+          <Link className="btn btn-primary btn-block" to="/classer">
+            Classer {todo > 1 ? `les ${todo} opérations inconnues` : 'l’opération inconnue'}
+          </Link>
+        )}
+        <button className={`btn btn-block${todo ? '' : ' btn-primary'}`} onClick={() => navigate('/')}>
           Terminer
         </button>
         <Link className="btn btn-block" to={`/operations?mois=${info.to.slice(0, 7)}`}>
@@ -540,6 +563,8 @@ export default function ImportFlow() {
         rows: toSave,
         duplicates: rows.filter((r) => !r.selected && r.status !== 'new').length,
       });
+      // Les choix faits dans l'aperçu profitent aussi aux opérations déjà enregistrées.
+      if (toSave.some((r) => r.categorySource === 'manual')) await reapplyRules();
       if (source.kind === 'csv' && profile?.remember) {
         const data = {
           name: profile.name,

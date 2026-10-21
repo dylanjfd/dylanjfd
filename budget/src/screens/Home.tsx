@@ -225,7 +225,7 @@ export default function Home() {
       {!!uncategorized && (
         <Notice tone="info" icon={<Tags size={20} />} title={`${plural(uncategorized, 'opération', 'opérations')} à classer`}>
           <div className="notice-actions">
-            <Link className="btn btn-sm" to="/operations?cat=none">
+            <Link className="btn btn-sm" to="/classer">
               Classer maintenant
             </Link>
           </div>

@@ -1483,3 +1483,45 @@ body:has(.no-tabbar) .toast {
     transition: none !important;
   }
 }
+
+/* ───────────── Classer les opérations ───────────── */
+.classify-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.classify-label {
+  margin-top: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.classify-reason {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 6px;
+  color: var(--text-2);
+}
+
+.classify-reason svg {
+  color: var(--primary);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.classify-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.classify-actions .cat-chip {
+  min-height: 36px;
+  padding: 6px 12px 6px 10px;
+  font-size: 14px;
+}

@@ -1,5 +1,5 @@
 import { db, type CsvMapping, type Transaction } from '../../db/schema';
-import { draftTransaction, getSortedRules } from '../../lib/actions';
+import { draftTransaction, getClassifyContext } from '../../lib/actions';
 import { addDays } from '../../lib/dates';
 import { analyzeCsv, type CsvAnalysis, type ParsedRow } from '../../lib/import/csv';
 import { detectDuplicates, type DuplicateStatus } from '../../lib/import/dedupe';
@@ -134,8 +134,8 @@ export async function findProfile(signature: string) {
 /** Catégorise les lignes et repère les doublons avec les opérations déjà enregistrées sur le compte. */
 export async function buildPreview(items: ParsedRow[], accountId: number): Promise<PreviewRow[]> {
   if (items.length === 0) return [];
-  const rules = await getSortedRules();
-  const drafts = items.map((i) => draftTransaction(i, rules));
+  const ctx = await getClassifyContext();
+  const drafts = items.map((i) => draftTransaction(i, ctx));
   const dates = drafts.map((d) => d.date).sort();
   const existing = await db.transactions
     .where('date')

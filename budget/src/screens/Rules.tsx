@@ -112,8 +112,9 @@ export default function Rules() {
         }
       />
       <p className="small muted" style={{ margin: '0 4px 12px' }}>
-        Chaque opération importée est classée selon le premier mot-clé trouvé dans son libellé. Vos règles passent avant
-        celles par défaut ; les catégories choisies à la main ne sont jamais modifiées.
+        Chaque opération importée est classée selon le mot-clé le plus précis trouvé dans son libellé. Vos règles passent
+        avant tout ; sans mot-clé, l’app s’appuie sur vos choix passés pour le même commerçant, puis devine (virement
+        reçu, mot proche…). Les catégories choisies à la main ne sont jamais modifiées.
       </p>
       <div className="search">
         <Search size={18} />

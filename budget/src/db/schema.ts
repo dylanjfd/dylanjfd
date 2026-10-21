@@ -40,8 +40,11 @@ export interface Rule {
   source: 'default' | 'user';
 }
 
-/** Origine de la catégorie : règle automatique, choix manuel, ou aucune (à classer). */
-export type CategorySource = 'rule' | 'manual' | 'none';
+/**
+ * Origine de la catégorie : mot-clé ou règle, choix manuel, devinée par l'app
+ * (choix passés, mot proche, nature de l'opération), ou aucune (à classer).
+ */
+export type CategorySource = 'rule' | 'manual' | 'auto' | 'none';
 
 export interface Transaction {
   id: number;

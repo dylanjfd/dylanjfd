@@ -1,9 +1,16 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Trash2, WandSparkles } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { db, type Category, type Transaction } from '../db/schema';
+import { db, type Category, type CategorySource, type Transaction } from '../db/schema';
 import { useAccounts, useCategories } from '../hooks/useData';
-import { countRuleMatches, createRule, draftTransaction, getSortedRules, setTransactionCategory } from '../lib/actions';
+import {
+  confirmCategories,
+  countRuleMatches,
+  createRule,
+  draftTransaction,
+  getClassifyContext,
+  setTransactionCategory,
+} from '../lib/actions';
 import { todayISO } from '../lib/dates';
 import { formatDate, formatEUR, plural } from '../lib/format';
 import { parseAmount } from '../lib/import/parse';
@@ -143,6 +150,13 @@ export function TransactionRow({
   );
 }
 
+const SOURCE_TEXT: Record<CategorySource, string> = {
+  manual: 'choisie à la main',
+  rule: 'classement automatique',
+  auto: 'devinée par l’app',
+  none: '',
+};
+
 /** Détail d'une opération : catégorie, note, suppression. */
 export function TransactionSheet({ txId, onClose }: { txId: number | null; onClose: () => void }) {
   const tx = useLiveQuery(() => (txId == null ? undefined : db.transactions.get(txId)), [txId]);
@@ -167,8 +181,9 @@ export function TransactionSheet({ txId, onClose }: { txId: number | null; onClo
 
   async function pick(id: number | null) {
     if (!tx) return;
-    await setTransactionCategory(tx.id, id);
+    const others = await setTransactionCategory(tx.id, id);
     setPicking(false);
+    if (others > 0) toast(`${plural(others, 'opération semblable classée', 'opérations semblables classées')} aussi`);
     if (id == null || !tx.merchant) return setSuggest(null);
     const pattern = normalizeLabel(tx.merchant);
     const existing = await db.rules.where('pattern').equals(pattern).toArray();
@@ -206,8 +221,13 @@ export function TransactionSheet({ txId, onClose }: { txId: number | null; onClo
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <CatChip category={category} />
                 <span className="muted small" style={{ flex: 1 }}>
-                  {tx.categorySource === 'manual' ? 'choisie à la main' : tx.categorySource === 'rule' ? 'classement automatique' : ''}
+                  {SOURCE_TEXT[tx.categorySource]}
                 </span>
+                {tx.categorySource === 'auto' && (
+                  <button className="btn btn-sm" onClick={() => void confirmCategories([tx.id])}>
+                    Valider
+                  </button>
+                )}
                 <button className="btn btn-sm" onClick={() => setPicking(true)}>
                   Modifier
                 </button>
@@ -284,7 +304,7 @@ export function AddTransactionSheet({ open, onClose }: { open: boolean; onClose:
   async function save() {
     if (!valid) return;
     const signed = type === 'expense' ? -Math.abs(cents!) : Math.abs(cents!);
-    const draft = draftTransaction({ date, amountCents: signed, label: label.trim() }, await getSortedRules());
+    const draft = draftTransaction({ date, amountCents: signed, label: label.trim() }, await getClassifyContext());
     const chosen = categoryId ?? draft.categoryId;
     await db.transactions.add({
       ...draft,

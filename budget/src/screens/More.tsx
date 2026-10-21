@@ -1,5 +1,18 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ChevronRight, ClipboardCopy, HardDrive, History, Landmark, ShieldCheck, Smartphone, Tags, Trash2, Upload, WandSparkles } from 'lucide-react';
+import {
+  ChevronRight,
+  ClipboardCopy,
+  HardDrive,
+  History,
+  Landmark,
+  ListChecks,
+  ShieldCheck,
+  Smartphone,
+  Tags,
+  Trash2,
+  Upload,
+  WandSparkles,
+} from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useToast } from '../components/toast';
@@ -46,6 +59,8 @@ export default function More() {
     rules: await db.rules.count(),
     accounts: await db.accounts.count(),
     imports: await db.importBatches.count(),
+    todo: await db.transactions.filter((t) => t.categoryId == null).count(),
+    guessed: await db.transactions.filter((t) => t.categorySource === 'auto').count(),
   }));
   const storage = useStorageInfo();
   const navigate = useNavigate();
@@ -78,7 +93,7 @@ export default function More() {
 
       <div className="section-title">Données</div>
       <div className="list">
-        <LinkRow to="/import" icon={<Upload size={20} />} title="Importer un relevé" sub="CSV, OFX ou PDF" />
+        <LinkRow to="/import" icon={<Upload size={20} />} title="Importer un relevé" sub="CSV, OFX, PDF ou captures d’écran" />
         <LinkRow
           to="/plus/imports"
           icon={<History size={20} />}
@@ -96,6 +111,21 @@ export default function More() {
       <div className="section">
         <div className="section-title">Classement</div>
         <div className="list">
+          <LinkRow
+            to="/classer"
+            icon={<ListChecks size={20} />}
+            title="Classer les opérations"
+            sub={
+              counts
+                ? [
+                    counts.todo && `${counts.todo} à classer`,
+                    counts.guessed && `${plural(counts.guessed, 'devinée', 'devinées')} à vérifier`,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ') || 'Tout est classé'
+                : undefined
+            }
+          />
           <LinkRow to="/plus/categories" icon={<Tags size={20} />} title="Catégories" sub="Noms, icônes, couleurs" />
           <LinkRow
             to="/plus/regles"

@@ -1,28 +1,36 @@
 // Opérations d'écriture sur la base locale.
-import { seedDatabase } from '../db/seed';
-import { db, TABLES, type CategorySource, type ImportBatch, type Rule, type Transaction } from '../db/schema';
-import { categorize, matchesPattern, sortRules } from './rules';
+import { DEFAULT_RULES_VERSION, RULES_ADDED_IN_V2, seedDatabase } from '../db/seed';
+import { db, TABLES, type CategorySource, type ImportBatch, type Transaction } from '../db/schema';
+import { buildMemory, classify, makeContext, type ClassifyContext } from './classify';
+import { matchesPattern, sortRules } from './rules';
 import { merchantOf, normalizeLabel } from './text';
 
-export async function getSortedRules(): Promise<Rule[]> {
-  return sortRules(await db.rules.toArray());
+/** Règles, choix passés et catégories : tout ce qu'il faut pour classer une opération. */
+export async function getClassifyContext(): Promise<ClassifyContext> {
+  const [rules, manual, categories] = await Promise.all([
+    db.rules.toArray(),
+    db.transactions.filter((t) => t.categorySource === 'manual').toArray(),
+    db.categories.toArray(),
+  ]);
+  return makeContext(sortRules(rules), buildMemory(manual), categories.map((c) => c.id));
 }
 
-/** Crée une opération à partir de ses champs bruts, catégorisée par les règles. */
+/** Crée une opération à partir de ses champs bruts, classée automatiquement. */
 export function draftTransaction(
   row: { date: string; amountCents: number; label: string; fitId?: string },
-  sortedRules: Rule[],
+  ctx: ClassifyContext,
 ): Omit<Transaction, 'id' | 'accountId'> {
   const labelNorm = normalizeLabel(row.label);
-  const categoryId = categorize(labelNorm, sortedRules);
+  const merchant = merchantOf(row.label);
+  const { categoryId, source } = classify({ labelNorm, merchant, amountCents: row.amountCents }, ctx);
   return {
     date: row.date,
     amountCents: row.amountCents,
     label: row.label,
     labelNorm,
-    merchant: merchantOf(row.label),
+    merchant,
     categoryId,
-    categorySource: categoryId === null ? 'none' : 'rule',
+    categorySource: source,
     ...(row.fitId ? { fitId: row.fitId } : {}),
   };
 }
@@ -56,25 +64,81 @@ export async function createRule(pattern: string, categoryId: number, applyToExi
   });
 }
 
-/** Réapplique toutes les règles aux opérations qui n'ont pas été classées à la main. */
+/**
+ * Reclasse les opérations qui n'ont pas été classées à la main, avec les règles
+ * et tout ce que l'app a appris de vos choix. Renvoie le nombre d'opérations modifiées.
+ */
 export async function reapplyRules(): Promise<number> {
-  return db.transaction('rw', db.rules, db.transactions, async () => {
-    const rules = sortRules(await db.rules.toArray());
+  return db.transaction('rw', db.rules, db.transactions, db.categories, async () => {
+    const ctx = await getClassifyContext();
     const all = await db.transactions.filter((t) => t.categorySource !== 'manual').toArray();
+    const cache = new Map<string, { categoryId: number | null; source: CategorySource }>();
     const updates: { key: number; changes: Partial<Transaction> }[] = [];
+    let moved = 0;
     for (const t of all) {
-      const categoryId = categorize(t.labelNorm, rules);
-      if (categoryId !== t.categoryId) {
-        updates.push({ key: t.id, changes: { categoryId, categorySource: categoryId === null ? 'none' : 'rule' } });
+      const key = `${t.amountCents > 0 ? '+' : '-'}${t.merchant}|${t.labelNorm}`;
+      let c = cache.get(key);
+      if (!c) cache.set(key, (c = classify(t, ctx)));
+      if (c.categoryId !== t.categoryId || c.source !== t.categorySource) {
+        updates.push({ key: t.id, changes: { categoryId: c.categoryId, categorySource: c.source } });
+        if (c.categoryId !== t.categoryId) moved++;
       }
     }
     await db.transactions.bulkUpdate(updates);
-    return updates.length;
+    return moved;
   });
 }
 
-export async function setTransactionCategory(id: number, categoryId: number | null): Promise<void> {
-  await db.transactions.update(id, { categoryId, categorySource: categoryId === null ? 'none' : 'manual' });
+/**
+ * Catégorie choisie à la main (« à classer » compris : l'app ne la reclassera plus).
+ * Les opérations semblables qui ne sont pas classées à la main suivent ce choix.
+ * Renvoie le nombre d'autres opérations reclassées.
+ */
+export async function setTransactionCategory(id: number, categoryId: number | null): Promise<number> {
+  return setCategories([id], categoryId);
+}
+
+export async function setCategories(ids: number[], categoryId: number | null): Promise<number> {
+  await db.transactions.bulkUpdate(ids.map((key) => ({ key, changes: { categoryId, categorySource: 'manual' as const } })));
+  return reapplyRules();
+}
+
+/** Valide des catégories devinées par l'app : elles comptent ensuite comme des choix manuels. */
+export async function confirmCategories(ids: number[]): Promise<void> {
+  await db.transactions.bulkUpdate(ids.map((key) => ({ key, changes: { categorySource: 'manual' as const } })));
+  await reapplyRules();
+}
+
+/** Remet des opérations dans l'état où elles étaient (pour « Annuler »), puis reclasse le reste. */
+export async function restoreCategories(
+  before: Pick<Transaction, 'id' | 'categoryId' | 'categorySource'>[],
+): Promise<void> {
+  await db.transactions.bulkUpdate(
+    before.map((t) => ({ key: t.id, changes: { categoryId: t.categoryId, categorySource: t.categorySource } })),
+  );
+  await reapplyRules();
+}
+
+const CLASSIFIER_VERSION = 2;
+
+/**
+ * Au démarrage : ajoute les nouveaux mots-clés par défaut aux bases existantes,
+ * puis reclasse une fois les opérations avec la version actuelle du classement.
+ */
+export async function upgradeClassification(): Promise<number> {
+  const rulesVersion = await getSetting('defaultRulesVersion', 1);
+  if (rulesVersion < DEFAULT_RULES_VERSION) {
+    await db.transaction('rw', db.rules, db.categories, db.settings, async () => {
+      const known = new Set((await db.rules.toArray()).map((r) => r.pattern));
+      const categories = new Set((await db.categories.toCollection().primaryKeys()) as number[]);
+      await db.rules.bulkAdd(RULES_ADDED_IN_V2.filter((r) => !known.has(r.pattern) && categories.has(r.categoryId)));
+      await setSetting('defaultRulesVersion', DEFAULT_RULES_VERSION);
+    });
+  }
+  if ((await getSetting('classifierVersion', 1)) >= CLASSIFIER_VERSION) return 0;
+  const n = await reapplyRules();
+  await setSetting('classifierVersion', CLASSIFIER_VERSION);
+  return n;
 }
 
 /** Supprime une catégorie : ses opérations repassent « à classer » et ses règles disparaissent. */

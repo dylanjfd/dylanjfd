@@ -2,11 +2,11 @@ import 'fake-indexeddb/auto';
 import { describe, expect, it } from 'vitest';
 import { db } from '../src/db/schema';
 import { CAT, DEFAULT_CATEGORIES } from '../src/db/seed';
-import { commitImport, createRule, deleteAllData, draftTransaction, getSortedRules, reapplyRules, undoImport } from '../src/lib/actions';
+import { commitImport, createRule, deleteAllData, draftTransaction, getClassifyContext, reapplyRules, undoImport } from '../src/lib/actions';
 import { buildBackup, parseBackup, restoreBackup } from '../src/lib/backup';
 
 async function importSample() {
-  const rules = await getSortedRules();
+  const rules = await getClassifyContext();
   const rows = [
     { date: '2026-10-01', amountCents: 245000, label: 'VIR SEPA ACME SALAIRE' },
     { date: '2026-10-03', amountCents: -4530, label: 'CB CARREFOUR MARKET 02/10' },

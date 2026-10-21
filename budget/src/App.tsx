@@ -4,6 +4,8 @@ import { createContext, lazy, Suspense, useContext, useEffect, useMemo } from 'r
 import { HashRouter, NavLink, Route, Routes, useLocation } from 'react-router-dom';
 import { ToastProvider } from './components/toast';
 import { db } from './db/schema';
+import { upgradeClassification } from './lib/actions';
+import { recordError } from './lib/errorLog';
 import { useBudgetFilter, useCategories } from './hooks/useData';
 import { useThemeMode } from './hooks/useTheme';
 import { budgetLines } from './lib/budget';
@@ -22,6 +24,7 @@ import Accounts from './screens/Accounts';
 import ImportHistory from './screens/ImportHistory';
 import Backup from './screens/Backup';
 import Install from './screens/Install';
+import Classify from './screens/Classify';
 import ImportFlow from './screens/import/ImportFlow';
 
 // Les graphiques (Recharts) sont chargés à la demande pour alléger le démarrage,
@@ -84,6 +87,7 @@ function Layout() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/operations" element={<Operations />} />
+          <Route path="/classer" element={<Classify />} />
           <Route path="/budgets" element={<Budgets />} />
           <Route path="/budgets/epargne" element={<Budgets tab="goals" />} />
           <Route path="/analyses" element={<Suspense fallback={<Loading />}><Analyses /></Suspense>} />
@@ -113,6 +117,10 @@ export default function App() {
   useEffect(() => {
     // Demande au navigateur de ne pas effacer les données (important sur iOS).
     void navigator.storage?.persist?.();
+  }, []);
+  useEffect(() => {
+    // Nouveaux mots-clés et classement amélioré : appliqués une fois aux opérations existantes.
+    upgradeClassification().catch((e: unknown) => recordError(e, 'mise à niveau du classement'));
   }, []);
   return (
     <ThemeContext.Provider value={mode}>

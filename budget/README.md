@@ -50,10 +50,27 @@ scanné et des captures d’écran. Les autres banques passent par l’écran de
 ### Catégorisation
 
 Catégories par défaut modifiables : Logement, Courses, Transport, Restaurants, Loisirs, Abonnements, Santé, Shopping,
-Revenus, Épargne, Autres (+ Virements internes, ignorés dans les totaux). Environ 300 mots-clés français sont fournis
-(CARREFOUR → Courses, SNCF → Transport, NETFLIX → Abonnements…). Les mots-clés sont recherchés en mots entiers et le
-plus précis l’emporte (UBER EATS → Restaurants, UBER → Transport). Quand une catégorie est corrigée à la main,
-l’application propose « Toujours classer ce libellé ici » et peut reclasser les opérations similaires.
+Revenus, Épargne, Autres (+ Virements internes, ignorés dans les totaux).
+
+Chaque opération passe par plusieurs étapes, de la plus sûre à la moins sûre (`src/lib/classify.ts`) :
+
+1. **Vos règles** (« Toujours classer ce libellé ici », Plus › Règles).
+2. **Vos choix répétés** pour le même commerçant (au moins deux fois la même catégorie).
+3. **Revenus** : sur un crédit, SALAIRE, PAIE, CAF, ALLOCATION, PRIME… l’emportent sur l’enseigne (salaire versé par
+   CARREFOUR).
+4. **Environ 1 000 mots-clés français** en mots entiers, le plus précis l’emporte (UBER EATS → Restaurants, UBER →
+   Transport) : enseignes, fournisseurs d’énergie, assureurs, mutuelles, abréviations bancaires (PHIE, PRLV…).
+5. **Un choix unique** pour ce commerçant, puis un **mot proche** d’un mot-clé (pluriel, mot collé, lettre mal lue :
+   PHARMACIES, YOUTUBEPREMIUM, CARREFOUP), puis un **commerçant ressemblant** déjà classé.
+6. **Nature de l’opération** : virement reçu, chèque ou dépôt → Revenus ; frais et commissions → Autres. Une dépense
+   n’est jamais devinée comme revenu, un remboursement par carte d’un commerçant inconnu reste à classer.
+
+Les étapes 2, 5 et 6 donnent une catégorie « devinée » (marquée dans l’aperçu d’import et dans la fiche). L’écran
+**Classer** (Accueil ou Plus) regroupe par commerçant les opérations à classer, avec des catégories proposées selon leur
+nature (prélèvement, paiement carte, virement…), et les classements devinés à valider. Un choix s’applique aux
+opérations semblables déjà enregistrées et aux prochains imports ; « Annuler » le défait. Les catégories choisies à la
+main ne sont jamais modifiées. À la mise à jour, les nouveaux mots-clés sont ajoutés et les opérations existantes
+reclassées une fois (sans faire revenir les mots-clés que vous aviez supprimés).
 
 ## Installer sur le téléphone
 
@@ -98,7 +115,8 @@ src/
 ├─ db/            schéma Dexie, catégories et mots-clés par défaut
 ├─ lib/
 │  ├─ import/     décodage, montants et dates, analyse CSV, OFX, PDF, images (OCR), doublons
-│  ├─ rules.ts    classement par mots-clés
+│  ├─ rules.ts    recherche des mots-clés
+│  ├─ classify.ts classement : règles, mémoire des choix, mots proches, nature de l’opération
 │  ├─ budget.ts   plafonds, alertes, reste par jour
 │  ├─ recurring.ts détection des dépenses récurrentes
 │  ├─ stats.ts    totaux, répartition, moyennes, commerçants

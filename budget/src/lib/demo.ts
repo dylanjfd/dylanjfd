@@ -1,7 +1,7 @@
 // Données fictives pour découvrir l'application sans importer de relevé.
 import { db } from '../db/schema';
 import { CAT } from '../db/seed';
-import { commitImport, draftTransaction, getSortedRules } from './actions';
+import { commitImport, draftTransaction, getClassifyContext } from './actions';
 import { addMonths, dayInMonth, monthOf, monthRange, todayISO } from './dates';
 
 export const DEMO_FILE_NAME = 'Données de démonstration';
@@ -74,9 +74,9 @@ export function demoRows(today = todayISO()): { date: string; amountCents: numbe
 }
 
 export async function loadDemoData(): Promise<void> {
-  const rules = await getSortedRules();
+  const ctx = await getClassifyContext();
   const account = await db.accounts.toCollection().first();
-  const rows = demoRows().map((r) => draftTransaction(r, rules));
+  const rows = demoRows().map((r) => draftTransaction(r, ctx));
   await commitImport({ fileName: DEMO_FILE_NAME, accountId: account?.id ?? 1, rows, duplicates: 0 });
 
   const budgets: Record<number, number> = {

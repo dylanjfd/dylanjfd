@@ -4,11 +4,13 @@ import { useNavigate } from 'react-router-dom';
 import { MonthCalendar } from '../components/Calendar';
 import { Donut, StackBar, type DonutSegment } from '../components/Donut';
 import { Loading } from '../components/Loading';
+import { useToast } from '../components/toast';
 import { CatIcon } from '../components/ui';
 import { db, type Category } from '../db/schema';
 import { CAT } from '../db/seed';
 import { useBudgetFilter, useCategories, usePlan, useRecurring, useTransactions } from '../hooks/useData';
-import { savePlan } from '../lib/actions';
+import { recordError } from '../lib/errorLog';
+import { retryWrite } from '../lib/recovery';
 import { addMonths, currentMonth, monthBounds, monthRange, todayISO } from '../lib/dates';
 import { loadDemoData } from '../lib/demo';
 import { centsToInput, formatEUR } from '../lib/format';
@@ -19,6 +21,7 @@ import {
   BRANDS,
   markInk,
   newId,
+  PLAN_KEY,
   plannedByCategory,
   plannedEvents,
   suggestFromHistory,
@@ -137,6 +140,7 @@ function BrandMark({ item, size = 40 }: { item: Pick<PlanItem, 'brand' | 'name'>
 
 export default function Setup() {
   const navigate = useNavigate();
+  const toast = useToast();
   const plan = usePlan();
   const { list, map, loaded } = useCategories();
   const recurring = useRecurring();
@@ -269,25 +273,38 @@ export default function Setup() {
     setEditing(null);
   }
 
-  async function save(setup: Plan['setup']) {
+  /** Enregistre le budget ; en cas d'échec, reste sur l'écran avec un message. */
+  async function save(setup: Plan['setup']): Promise<boolean> {
     setBusy(true);
     const next = planFrom(draft!, plan!, setup);
-    await db.transaction('rw', db.categories, db.settings, async () => {
-      for (const [id, cents] of Object.entries(draft!.budgets)) if (cents != null) await db.categories.update(Number(id), { budgetCents: cents });
-      await savePlan(next);
-    });
-    setBusy(false);
+    try {
+      await retryWrite(
+        () =>
+          db.transaction('rw', db.categories, db.settings, async () => {
+            for (const [id, cents] of Object.entries(draft!.budgets))
+              if (cents != null) await db.categories.update(Number(id), { budgetCents: cents });
+            await db.settings.put({ key: PLAN_KEY, value: next });
+          }),
+        8000,
+      );
+      return true;
+    } catch (e) {
+      recordError(e, 'enregistrement du démarrage');
+      toast('Enregistrement impossible pour le moment. Réessaie dans un instant.');
+      return false;
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function finish() {
-    await save('done');
+    if (!(await save('done'))) return;
     setWelcome(true);
     setTimeout(() => navigate('/', { replace: true }), 1400);
   }
 
   async function skip() {
-    await save(step === 0 && !draft!.salary ? 'skipped' : 'done');
-    navigate('/', { replace: true });
+    if (await save(step === 0 && !draft!.salary ? 'skipped' : 'done')) navigate('/', { replace: true });
   }
 
   async function demo() {

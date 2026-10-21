@@ -25,9 +25,15 @@ hors ligne.
 - **PDF** : relevés de compte mensuels (texte lu sur le téléphone avec pdf.js, chargé seulement à ce moment-là).
   Le tableau est reconstitué à partir de la position du texte : date (avec ou sans année), libellé sur plusieurs
   lignes, colonnes Débit/Crédit ou montant signé ; les lignes de solde et de totaux sont ignorées. PDF protégés par
-  mot de passe acceptés ; les PDF scannés (images) ne peuvent pas être lus. Quand un relevé regroupe plusieurs comptes
+  mot de passe acceptés ; les PDF scannés sont lus par reconnaissance de texte (voir ci-dessous). Quand un relevé regroupe plusieurs comptes
   (compte de dépôt, Livret A…), l’aperçu demande lequel importer. L’aperçu permet d’inverser le sens d’une
   opération ou de tout le relevé si besoin.
+- **Images (JPG, PNG, WebP)** : captures d’écran de l’application de la banque ou photos d’un relevé papier, une ou
+  plusieurs à la fois (dans l’ordre). Le texte est reconnu sur le téléphone avec Tesseract (moteur et données de
+  langue française servis par l’app depuis `ocr/`, environ 4 Mo téléchargés au premier usage puis gardés en cache :
+  fonctionne ensuite hors connexion). Les titres de jour (« Aujourd’hui », « Mardi 14 octobre ») sont reconnus et les
+  opérations répétées d’une capture à la suivante ne sont comptées qu’une fois. Format HEIC non pris en charge
+  (réglage iPhone : Appareil photo › Formats › Le plus compatible, ou faire une capture d’écran).
 - **Correspondance des colonnes** au premier import d’un format, mémorisée pour les suivants (reconnaissance par les
   en-têtes du fichier).
 - **Aperçu** avant validation, catégories modifiables ligne par ligne.
@@ -38,7 +44,8 @@ hors ligne.
 
 Formats testés (voir `tests/fixtures`) : Société Générale, Crédit Agricole, BoursoBank, La Banque Postale, LCL,
 Revolut, OFX génériques, et des relevés PDF de plusieurs mises en page (Débit/Crédit, dates sans année, montant signé,
-mise en page Crédit Agricole : dates JJ.MM, en-tête sur deux lignes, plusieurs comptes dans le même relevé). Les autres banques passent par l’écran de correspondance des colonnes.
+mise en page Crédit Agricole : dates JJ.MM, en-tête sur deux lignes, plusieurs comptes dans le même relevé), un PDF
+scanné et des captures d’écran. Les autres banques passent par l’écran de correspondance des colonnes.
 
 ### Catégorisation
 
@@ -82,13 +89,15 @@ npm run build      # vérification TypeScript + build de production dans dist/
 npm run preview    # sert le build (service worker actif)
 ```
 
-Stack : React 19, Vite, TypeScript, Dexie (IndexedDB), vite-plugin-pwa (Workbox), PapaParse, Recharts, Vitest.
+Stack : React 19, Vite, TypeScript, Dexie (IndexedDB), vite-plugin-pwa (Workbox), PapaParse, pdf.js, Tesseract.js,
+Recharts, Vitest. `scripts/copy-ocr.mjs` copie le moteur OCR et les données françaises dans `public/ocr/` avant
+`dev` et `build`.
 
 ```
 src/
 ├─ db/            schéma Dexie, catégories et mots-clés par défaut
 ├─ lib/
-│  ├─ import/     décodage, montants et dates, analyse CSV, OFX, doublons
+│  ├─ import/     décodage, montants et dates, analyse CSV, OFX, PDF, images (OCR), doublons
 │  ├─ rules.ts    classement par mots-clés
 │  ├─ budget.ts   plafonds, alertes, reste par jour
 │  ├─ recurring.ts détection des dépenses récurrentes
@@ -107,5 +116,7 @@ français (`1 234,56 €`, `JJ/MM/AAAA`).
 - Pas de synchronisation bancaire automatique : il faut importer les relevés (choix volontaire, aucun serveur).
 - Les alertes de budget s’affichent dans l’application : une PWA sans serveur ne peut pas envoyer de notifications
   fiables.
-- Les relevés Excel (.xls/.xlsx) et les PDF scannés ne sont pas lus : exporter en CSV, OFX ou PDF texte depuis la banque.
+- Les relevés Excel (.xls/.xlsx) ne sont pas lus : exporter en CSV, OFX ou PDF depuis la banque.
 - La lecture des PDF repose sur la mise en page : sur un format inhabituel, vérifier l’aperçu avant d’importer.
+- La reconnaissance de texte des images peut se tromper (photo floue, de travers, mal éclairée) : vérifier dates et
+  montants dans l’aperçu. Un PDF ou un CSV de la banque reste plus fiable.

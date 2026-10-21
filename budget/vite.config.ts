@@ -40,7 +40,17 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,mjs,css,html,svg,png,webmanifest}'],
+        // Le moteur OCR (plusieurs Mo) n'est téléchargé qu'au premier import d'image,
+        // puis gardé en cache pour fonctionner hors ligne.
+        globIgnores: ['**/ocr/**'],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }) => url.pathname.includes('/ocr/'),
+            handler: 'CacheFirst',
+            options: { cacheName: 'ocr', expiration: { maxEntries: 10 } },
+          },
+        ],
         navigateFallback: 'index.html',
         cleanupOutdatedCaches: true,
       },

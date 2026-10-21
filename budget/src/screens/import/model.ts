@@ -12,12 +12,14 @@ export interface PreviewRow extends Draft {
   key: number;
   status: DuplicateStatus;
   selected: boolean;
+  /** Compte d'origine dans un relevé PDF qui en regroupe plusieurs. */
+  section?: string;
 }
 
 export type Source =
   | { kind: 'csv'; fileName: string; encoding: Encoding; analysis: CsvAnalysis }
   | { kind: 'ofx'; fileName: string; encoding: Encoding; items: ParsedRow[]; skipped: number }
-  | { kind: 'pdf'; fileName: string; items: ParsedRow[]; skipped: number };
+  | { kind: 'pdf'; fileName: string; items: ParsedRow[]; skipped: number; sections: string[] };
 
 export class ImportError extends Error {}
 
@@ -34,14 +36,14 @@ async function readPdf(file: File, bytes: Uint8Array): Promise<Source> {
   // pdf.js (plus d'1 Mo) n'est chargé que pour les relevés PDF.
   const { readPdfStatement, PdfReadError } = await import('../../lib/import/pdfReader');
   try {
-    const { items, skipped } = await readPdfStatement(bytes, () =>
+    const { items, skipped, sections } = await readPdfStatement(bytes, () =>
       prompt('Ce PDF est protégé. Saisissez son mot de passe (il n’est pas enregistré) :'),
     );
     if (items.length === 0)
       throw new ImportError(
         'Aucune opération reconnue dans ce PDF. Vérifiez qu’il s’agit bien d’un relevé de compte, ou exportez-le en CSV depuis votre banque.',
       );
-    return { kind: 'pdf', fileName: file.name, items, skipped };
+    return { kind: 'pdf', fileName: file.name, items, skipped, sections };
   } catch (e) {
     if (e instanceof ImportError) throw e;
     if (e instanceof PdfReadError) throw new ImportError(e.message);
@@ -86,7 +88,13 @@ export async function buildPreview(items: ParsedRow[], accountId: number): Promi
     .toArray();
   const statuses = detectDuplicates(drafts, existing);
   return drafts
-    .map((d, i) => ({ ...d, key: i, status: statuses[i], selected: statuses[i] === 'new' }))
+    .map((d, i) => ({
+      ...d,
+      key: i,
+      status: statuses[i],
+      selected: statuses[i] === 'new',
+      ...(items[i].section ? { section: items[i].section } : {}),
+    }))
     .sort((a, b) => b.date.localeCompare(a.date) || a.key - b.key);
 }
 

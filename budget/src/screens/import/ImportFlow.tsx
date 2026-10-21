@@ -95,8 +95,9 @@ function PickStep({ onFile, error, busy }: { onFile: (f: File) => void; error: s
           ignorées.
           <br />
           <br />
-          Vos <strong>relevés PDF</strong> mensuels sont aussi acceptés (rubrique « e-Documents » ou « Relevés »). Le CSV
-          reste le plus fiable ; un PDF scanné (photo) ne peut pas être lu.
+          Vos <strong>relevés PDF</strong> mensuels sont aussi acceptés (rubrique « e-Documents » ou « Relevés »), y compris
+          ceux du Crédit Agricole qui regroupent plusieurs comptes. Le CSV reste le plus fiable ; un PDF scanné (photo) ne
+          peut pas être lu.
         </div>
       </div>
     </>
@@ -127,6 +128,12 @@ function PreviewStep({
   const { list, map } = useCategories();
   const accounts = useAccounts();
   const [filter, setFilter] = useState<'selected' | 'duplicates' | 'all'>('selected');
+  const sections = source.kind === 'pdf' ? source.sections : [];
+  const [section, setSection] = useState(sections[0] ?? '');
+  const chooseSection = (s: string) => {
+    setSection(s);
+    setRows((rs) => rs.map((r) => ({ ...r, selected: r.status === 'new' && (s === '' || r.section === s) })));
+  };
   const [editing, setEditing] = useState<number | null>(null);
   const [suggest, setSuggest] = useState<{ merchant: string; category: Category } | null>(null);
 
@@ -209,6 +216,20 @@ function PreviewStep({
           </button>
         )}
       </div>
+
+      {sections.length > 1 && (
+        <label className="field" style={{ marginTop: 12 }}>
+          <span className="label">Ce relevé contient {sections.length} comptes : lequel importer ?</span>
+          <select className="select" value={section} onChange={(e) => chooseSection(e.target.value)}>
+            {sections.map((s) => (
+              <option key={s} value={s}>
+                {s} ({rows.filter((r) => r.section === s).length})
+              </option>
+            ))}
+            <option value="">Tous les comptes ({rows.length})</option>
+          </select>
+        </label>
+      )}
 
       {accounts.length > 1 && (
         <label className="field" style={{ marginTop: 12 }}>
@@ -422,6 +443,7 @@ export default function ImportFlow() {
   const [source, setSource] = useState<Source | null>(null);
   const [profile, setProfile] = useState<PendingProfile | null>(null);
   const [rows, setRows] = useState<PreviewRow[]>([]);
+  const [previewVersion, setPreviewVersion] = useState(0);
   const [accountId, setAccountId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -431,7 +453,12 @@ export default function ImportFlow() {
 
   async function preview(src: Source, mapping: CsvMapping | null, acc: number) {
     const items = src.kind === 'csv' ? applyMapping(src.analysis.rows, mapping!).items : src.items;
-    setRows(await buildPreview(items, acc));
+    let built = await buildPreview(items, acc);
+    // Relevé PDF regroupant plusieurs comptes : seul le premier (le compte courant) est coché.
+    if (src.kind === 'pdf' && src.sections.length > 1)
+      built = built.map((r) => (r.section === src.sections[0] ? r : { ...r, selected: false }));
+    setRows(built);
+    setPreviewVersion((v) => v + 1);
     setStep('preview');
   }
 
@@ -480,7 +507,7 @@ export default function ImportFlow() {
     setBusy(true);
     try {
       const selected = rows.filter((r) => r.selected);
-      const toSave = selected.map(({ key: _k, status: _s, selected: _sel, ...draft }) => draft);
+      const toSave = selected.map(({ key: _k, status: _s, selected: _sel, section: _sec, ...draft }) => draft);
       const batchId = await commitImport({
         fileName: source.fileName,
         accountId: account,
@@ -567,6 +594,7 @@ export default function ImportFlow() {
 
       {step === 'preview' && source && (
         <PreviewStep
+          key={previewVersion}
           source={source}
           rows={rows}
           setRows={(fn) => setRows(fn)}

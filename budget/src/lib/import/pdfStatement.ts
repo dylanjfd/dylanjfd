@@ -67,8 +67,11 @@ export function groupLines(page: number, items: PdfItem[]): PdfLine[] {
 
 const DATE_START = /^(\d{1,2})[/.-](\d{1,2})(?:[/.-](\d{4}|\d{2}))?(?=\s|$)/;
 const DATE_ONLY = /^\d{1,2}[/.-]\d{1,2}(?:[/.-](?:\d{4}|\d{2}))?$/;
-const AMOUNT = /^[+\-−]?\s?(?:\d{1,3}(?:[   .]\d{3})+|\d+),\d{2}(?:\s?(?:€|EUR))?(?:\s?[+\-−])?$/;
-const TRAILING_AMOUNT = /^(.*?)\s+([+\-−]?\s?(?:\d{1,3}(?:[   .]\d{3})+|\d+),\d{2}(?:\s?(?:€|EUR))?(?:\s?[+\-−])?)$/;
+// Le symbole monétaire est parfois mal encodé dans les PDF (« ¤ », « ¨ », « þ ») : on le tolère.
+const AMOUNT = /^[+\-−]?\s?(?:\d{1,3}(?:[   .]\d{3})+|\d+),\d{2}(?:\s?(?:€|EUR|[¤¨þ*]))?(?:\s?[+\-−])?$/;
+const TRAILING_AMOUNT = /^(.*?)\s+([+\-−]?\s?(?:\d{1,3}(?:[   .]\d{3})+|\d+),\d{2}(?:\s?(?:€|EUR|[¤¨þ*]))?(?:\s?[+\-−])?)$/;
+/** Titre d'une section de compte (« Compte de Dépôt n° 12345678901 en euros », « Livret A n° … »). */
+const SECTION = /^(COMPTE|CPTE|LIVRET|LDD|LDDS|LEP|PEL|CEL|PLAN|CCHQ|CCP|EPARGNE)\b.*\bN\s?\d{5,}/;
 /** Lignes de solde ou de totaux : à ignorer. */
 const SKIP =
   /^(ANCIEN |NOUVEAU )?SOLDE\b|^TOTA(L|UX)\b|^SOUS TOTAL|^REPORT\b|^A REPORTER|SOLDE (PRECEDENT|CREDITEUR|DEBITEUR|AU|FINAL|INITIAL)|TOTAL DES (OPERATIONS|MOUVEMENTS)/;
@@ -100,15 +103,27 @@ const center = (c: PdfCell) => (c.x0 + c.x1) / 2;
 /** Distance d'un montant à une colonne d'en-tête (montants alignés à droite ou centrés). */
 const distance = (a: PdfCell, col: PdfCell) => Math.min(Math.abs(center(a) - center(col)), Math.abs(a.x1 - col.x1));
 
-/** Période du relevé (« du 01/09/2026 au 30/09/2026 »), sinon la plus grande date complète trouvée. */
+const MONTHS = ['JANVIER', 'FEVRIER', 'MARS', 'AVRIL', 'MAI', 'JUIN', 'JUILLET', 'AOUT', 'SEPTEMBRE', 'OCTOBRE', 'NOVEMBRE', 'DECEMBRE'];
+
+/** Dates complètes du texte : « 30/09/2026 », « 30.09.2026 » ou « 30 septembre 2026 ». */
+function fullDates(text: string): string[] {
+  const numeric = [...text.matchAll(/\b\d{1,2}[/.-]\d{1,2}[/.-]\d{4}\b/g)].map((m) => parseDate(m[0], 'DMY'));
+  const words = [...normalizeLabel(text).matchAll(/\b(\d{1,2})(?: ?ER)? ([A-Z]+) (\d{4})\b/g)].map((m) => {
+    const month = MONTHS.indexOf(m[2]) + 1;
+    const [y, d] = [Number(m[3]), Number(m[1])];
+    return month > 0 && isValidDate(y, month, d) ? isoFromParts(y, month, d) : null;
+  });
+  return [...numeric, ...words].filter((d): d is string => !!d);
+}
+
+/** Fin de la période du relevé (« du … au 30/09/2026 »), sinon la plus grande date complète trouvée. */
 function statementEnd(lines: PdfLine[], today: string): string {
   const text = lines.map((l) => l.cells.map((c) => c.text).join(' ')).join('\n');
   const period = /\bdu\s+(\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4})\s+au\s+(\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4})/i.exec(text);
   const end = period && parseDate(period[2], 'DMY');
   if (end) return end;
-  const all = [...text.matchAll(/\b\d{1,2}[/.-]\d{1,2}[/.-]\d{4}\b/g)]
-    .map((m) => parseDate(m[0], 'DMY'))
-    .filter((d): d is string => !!d && d <= today)
+  const all = fullDates(text)
+    .filter((d) => diffDays(today, d) <= 31)
     .sort();
   return all[all.length - 1] ?? today;
 }
@@ -126,6 +141,7 @@ function resolveDate(d: number, m: number, y: string | undefined, end: string): 
 }
 
 interface Pending {
+  section?: string;
   date: string | null;
   label: string[];
   amount?: PdfCell;
@@ -185,7 +201,7 @@ function pickAmount(amounts: PdfCell[], cols: Columns): PdfCell | undefined {
 }
 
 function signedAmount(cell: PdfCell, cols: Columns, label: string): number | null {
-  const value = parseAmount(cell.text.replace(/\s?(€|EUR)/, ''));
+  const value = parseAmount(cell.text.replace(/\s?(€|EUR|[¤¨þ*])/, ''));
   if (value === null) return null;
   const raw = cell.text.trim();
   if (/^[-−]|[-−]$/.test(raw)) return -Math.abs(value);
@@ -195,11 +211,15 @@ function signedAmount(cell: PdfCell, cols: Columns, label: string): number | nul
 }
 
 /** Opérations d'un relevé PDF à partir de ses lignes de texte. */
-export function parsePdfStatement(lines: PdfLine[], today = todayISO()): { items: ParsedRow[]; skipped: number } {
+export function parsePdfStatement(
+  lines: PdfLine[],
+  today = todayISO(),
+): { items: ParsedRow[]; skipped: number; sections: string[] } {
   const end = statementEnd(lines, today);
   const items: ParsedRow[] = [];
   let skipped = 0;
   let cols: Columns = {};
+  let section: string | undefined;
   let current: Pending | null = null;
 
   const finish = () => {
@@ -209,7 +229,7 @@ export function parsePdfStatement(lines: PdfLine[], today = todayISO()): { items
     const label = op.label.join(' ').replace(/\s+/g, ' ').trim();
     const amount = op.amount ? signedAmount(op.amount, op.cols, label) : null;
     if (!op.date || amount === null || amount === 0) skipped++;
-    else items.push({ date: op.date, amountCents: amount, label: label || 'Opération' });
+    else items.push({ date: op.date, amountCents: amount, label: label || 'Opération', ...(op.section ? { section: op.section } : {}) });
   };
 
   for (const line of lines) {
@@ -221,9 +241,15 @@ export function parsePdfStatement(lines: PdfLine[], today = todayISO()): { items
     }
     const { date, label, labelX0, amounts } = splitLine(line, cols);
     const skip = SKIP.test(normalizeLabel(label));
+    if (!date && !amounts.length && SECTION.test(normalizeLabel(label))) {
+      finish();
+      section = label.replace(/\s+en euros?$/i, '').trim();
+      continue;
+    }
     if (date) {
       finish();
       current = {
+        section,
         date: resolveDate(Number(date[1]), Number(date[2]), date[3], end),
         label: label ? [label] : [],
         amount: pickAmount(amounts, cols),
@@ -251,5 +277,6 @@ export function parsePdfStatement(lines: PdfLine[], today = todayISO()): { items
     }
   }
   finish();
-  return { items, skipped };
+  const sections = [...new Set(items.map((i) => i.section).filter((s): s is string => !!s))];
+  return { items, skipped, sections };
 }

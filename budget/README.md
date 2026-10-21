@@ -25,7 +25,8 @@ hors ligne.
 - **PDF** : relevés de compte mensuels (texte lu sur le téléphone avec pdf.js, chargé seulement à ce moment-là).
   Le tableau est reconstitué à partir de la position du texte : date (avec ou sans année), libellé sur plusieurs
   lignes, colonnes Débit/Crédit ou montant signé ; les lignes de solde et de totaux sont ignorées. PDF protégés par
-  mot de passe acceptés ; les PDF scannés (images) ne peuvent pas être lus. L’aperçu permet d’inverser le sens d’une
+  mot de passe acceptés ; les PDF scannés (images) ne peuvent pas être lus. Quand un relevé regroupe plusieurs comptes
+  (compte de dépôt, Livret A…), l’aperçu demande lequel importer. L’aperçu permet d’inverser le sens d’une
   opération ou de tout le relevé si besoin.
 - **Correspondance des colonnes** au premier import d’un format, mémorisée pour les suivants (reconnaissance par les
   en-têtes du fichier).
@@ -36,7 +37,8 @@ hors ligne.
 - **Annulation** d’un import entier depuis l’historique.
 
 Formats testés (voir `tests/fixtures`) : Société Générale, Crédit Agricole, BoursoBank, La Banque Postale, LCL,
-Revolut, OFX génériques, et des relevés PDF de plusieurs mises en page (Débit/Crédit, dates sans année, montant signé). Les autres banques passent par l’écran de correspondance des colonnes.
+Revolut, OFX génériques, et des relevés PDF de plusieurs mises en page (Débit/Crédit, dates sans année, montant signé,
+mise en page Crédit Agricole : dates JJ.MM, en-tête sur deux lignes, plusieurs comptes dans le même relevé). Les autres banques passent par l’écran de correspondance des colonnes.
 
 ### Catégorisation
 

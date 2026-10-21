@@ -20,6 +20,8 @@ export interface ParsedRow {
   amountCents: number;
   label: string;
   fitId?: string;
+  /** Compte d'origine quand un relevé PDF en regroupe plusieurs. */
+  section?: string;
 }
 
 const DELIMITERS = [';', ',', '\t', '|'];

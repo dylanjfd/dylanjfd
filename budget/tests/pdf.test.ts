@@ -85,3 +85,28 @@ describe('relevés PDF', () => {
     ]);
   });
 });
+
+describe('relevé PDF Crédit Agricole', () => {
+  it('dates JJ.MM, en-tête sur deux lignes, « ¤ » après les montants, plusieurs comptes', async () => {
+    const { items, sections, skipped } = parsePdfStatement(await linesOf('credit-agricole.pdf'), '2026-10-21');
+    expect(sections).toEqual(['Compte de Dépôt n° 12345678901', 'Livret A n° 98765432100']);
+    expect(items.map((i) => [i.section?.slice(0, 6), i.date, i.amountCents, i.label])).toEqual([
+      ['Compte', '2026-09-02', -1599, 'PRELEVEMENT SEPA FREE MOBILE FM12345678 FR12ZZZ123456'],
+      ['Compte', '2026-09-03', -4530, 'PAIEMENT PAR CARTE X1234 CARREFOUR NANTES 01/09'],
+      ['Compte', '2026-09-05', 245000, 'VIREMENT EN VOTRE FAVEUR ACME SAS SALAIRE SEPTEMBRE'],
+      ['Compte', '2026-09-15', -20000, 'VIREMENT PERMANENT VERS LIVRET A'],
+      ['Livret', '2026-09-15', 20000, 'VIREMENT PERMANENT DE COMPTE DE DEPOT'],
+    ]);
+    expect(skipped).toBe(0);
+  });
+
+  it('année déduite d’une date en toutes lettres', () => {
+    const lines: PdfLine[] = [
+      { page: 1, y: 800, h: 9, cells: [{ text: 'Date d’arrêté : 31 Janvier 2027', x0: 400, x1: 520 }] },
+      { page: 1, y: 760, h: 9, cells: [{ text: 'Date', x0: 30, x1: 50 }, { text: 'Libellé', x0: 100, x1: 130 }, { text: 'Débit', x0: 400, x1: 430 }, { text: 'Crédit', x0: 480, x1: 510 }] },
+      { page: 1, y: 740, h: 9, cells: [{ text: '28.12', x0: 30, x1: 50 }, { text: 'PRLV EDF', x0: 100, x1: 150 }, { text: '68,00', x0: 405, x1: 430 }] },
+      { page: 1, y: 726, h: 9, cells: [{ text: '05.01', x0: 30, x1: 50 }, { text: 'PRLV LOYER', x0: 100, x1: 160 }, { text: '780,00', x0: 400, x1: 430 }] },
+    ];
+    expect(parsePdfStatement(lines, '2027-02-03').items.map((i) => i.date)).toEqual(['2026-12-28', '2027-01-05']);
+  });
+});

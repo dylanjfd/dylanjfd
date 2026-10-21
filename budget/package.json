@@ -1,7 +1,7 @@
 {
   "name": "mon-budget",
   "private": true,
-  "version": "1.4.0",
+  "version": "2.0.0",
   "description": "PWA de gestion de budget personnel, 100 % locale",
   "type": "module",
   "scripts": {

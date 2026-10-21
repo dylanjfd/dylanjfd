@@ -16,7 +16,7 @@ const KINDS: { value: CategoryKind; label: string; help: string }[] = [
   { value: 'expense', label: 'Dépense', help: 'Comptée dans les dépenses et les budgets.' },
   { value: 'income', label: 'Revenu', help: 'Comptée dans les revenus.' },
   { value: 'savings', label: 'Épargne', help: 'Argent mis de côté : ni dépense ni revenu.' },
-  { value: 'transfer', label: 'Virement', help: 'Virement entre vos comptes : ignoré dans les totaux.' },
+  { value: 'transfer', label: 'Virement', help: 'Virement entre tes comptes : ignoré dans les totaux.' },
 ];
 
 function CategoryForm({ category, open, onClose }: { category: Category | null; open: boolean; onClose: () => void }) {

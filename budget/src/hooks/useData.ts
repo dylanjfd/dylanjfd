@@ -2,6 +2,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useMemo } from 'react';
 import { db, type Account, type Category, type Transaction } from '../db/schema';
 import { addDays, addMonths, currentMonth, monthBounds, todayISO } from '../lib/dates';
+import { normalizePlan, PLAN_KEY, plannedByCategory, type Plan } from '../lib/plan';
 import { detectRecurring, summarizeRecurring } from '../lib/recurring';
 import { budgetAccountFilter, totals, type CatMap } from '../lib/stats';
 
@@ -20,6 +21,19 @@ export function useAccounts(): Account[] {
 export function useSetting<T>(key: string, fallback: T): T {
   const row = useLiveQuery(() => db.settings.get(key), [key]);
   return row ? (row.value as T) : fallback;
+}
+
+/** Budget prévu (undefined pendant le chargement). */
+export function usePlan(): Plan | undefined {
+  const row = useLiveQuery(async () => (await db.settings.get(PLAN_KEY)) ?? null, []);
+  return useMemo(() => (row === undefined ? undefined : normalizePlan(row?.value)), [row]);
+}
+
+/** Montant prévu par catégorie de dépense (dépenses fixes + budget). */
+export function usePlanned(): Map<number, number> {
+  const plan = usePlan();
+  const { list } = useCategories();
+  return useMemo(() => plannedByCategory(plan ?? normalizePlan(null), list), [plan, list]);
 }
 
 /** Opérations entre deux dates incluses (undefined pendant le chargement). */

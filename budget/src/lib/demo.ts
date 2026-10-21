@@ -1,7 +1,8 @@
 // Données fictives pour découvrir l'application sans importer de relevé.
 import { db } from '../db/schema';
 import { CAT } from '../db/seed';
-import { commitImport, draftTransaction, getClassifyContext } from './actions';
+import { commitImport, draftTransaction, getClassifyContext, savePlan } from './actions';
+import { normalizePlan, PLAN_KEY, type Plan } from './plan';
 import { addMonths, dayInMonth, monthOf, monthRange, todayISO } from './dates';
 
 export const DEMO_FILE_NAME = 'Données de démonstration';
@@ -73,6 +74,22 @@ export function demoRows(today = todayISO()): { date: string; amountCents: numbe
   return rows.sort((a, b) => b.date.localeCompare(a.date));
 }
 
+/** Budget prévu qui correspond aux opérations fictives. */
+const DEMO_PLAN: Plan = {
+  setup: 'done',
+  incomes: [{ id: 'salaire', name: 'Salaire', amountCents: 245000, day: 28, categoryId: CAT.revenus }],
+  fixed: [
+    { id: 'loyer', name: 'Loyer', amountCents: 78000, day: 5, categoryId: CAT.logement },
+    { id: 'demo-edf', name: 'Électricité', amountCents: 6800, day: 10, categoryId: CAT.logement },
+    { id: 'demo-maif', name: 'Assurance habitation', amountCents: 2430, day: 8, categoryId: CAT.logement },
+    { id: 'demo-pret', name: 'Crédit auto', amountCents: 18950, day: 6, categoryId: CAT.transport },
+    { id: 'demo-mobile', name: 'Forfait mobile', amountCents: 1599, day: 12, categoryId: CAT.abonnements, brand: 'mobile' },
+    { id: 'demo-netflix', name: 'Netflix', amountCents: 1549, day: 15, categoryId: CAT.abonnements, brand: 'netflix' },
+    { id: 'demo-spotify', name: 'Spotify', amountCents: 1112, day: 18, categoryId: CAT.abonnements, brand: 'spotify' },
+    { id: 'demo-basicfit', name: 'Basic-Fit', amountCents: 2999, day: 3, categoryId: CAT.loisirs, brand: 'basicfit' },
+  ],
+};
+
 export async function loadDemoData(): Promise<void> {
   const ctx = await getClassifyContext();
   const account = await db.accounts.toCollection().first();
@@ -86,6 +103,8 @@ export async function loadDemoData(): Promise<void> {
     [CAT.shopping]: 10000,
     [CAT.transport]: 15000,
   };
+  const current = normalizePlan((await db.settings.get(PLAN_KEY))?.value);
+  await savePlan(current.incomes.length || current.fixed.length ? { ...current, setup: 'done' } : DEMO_PLAN);
   await db.transaction('rw', db.categories, db.goals, async () => {
     for (const [id, cents] of Object.entries(budgets)) {
       const c = await db.categories.get(Number(id));

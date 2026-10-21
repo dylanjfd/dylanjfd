@@ -56,7 +56,7 @@ export function MappingStep({
       <div className="card">
         <h3>Correspondance des colonnes</h3>
         <p className="small muted" style={{ margin: '4px 4px 0' }}>
-          Première fois avec ce format : indiquez où se trouvent la date, le libellé et le montant. Ce sera mémorisé pour
+          Première fois avec ce format : indique où se trouvent la date, le libellé et le montant. Ce sera mémorisé pour
           les prochains imports.
         </p>
         <div className="kv small" style={{ marginTop: 8 }}>
@@ -175,7 +175,7 @@ export function MappingStep({
           <span>
             Inverser le signe
             <span className="small muted" style={{ display: 'block' }}>
-              À cocher si vos dépenses apparaissent en positif dans l’aperçu.
+              À cocher si tes dépenses apparaissent en positif dans l’aperçu.
             </span>
           </span>
         </label>
@@ -187,7 +187,7 @@ export function MappingStep({
           <div className="notice warn">
             <div className="row-main">
               <div className="row-title">Aucune opération reconnue avec ces réglages</div>
-              <div className="small muted">Vérifiez la colonne et le format de la date, puis la colonne du montant.</div>
+              <div className="small muted">Vérifie la colonne et le format de la date, puis la colonne du montant.</div>
             </div>
           </div>
         ) : (

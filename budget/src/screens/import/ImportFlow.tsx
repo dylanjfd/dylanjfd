@@ -6,7 +6,7 @@ import { CategoryPicker, RulePrompt } from '../../components/transactions';
 import { useToast } from '../../components/toast';
 import { Amount, BudgetBadge, CatChip, CatIcon, Notice, Progress, Segmented, Sheet } from '../../components/ui';
 import { db, type Category, type CsvMapping } from '../../db/schema';
-import { useAccounts, useBudgetFilter, useCategories, useMonthTransactions } from '../../hooks/useData';
+import { useAccounts, useBudgetFilter, useCategories, useMonthTransactions, usePlanned } from '../../hooks/useData';
 import { commitImport, reapplyRules, undoImport } from '../../lib/actions';
 import { budgetLines } from '../../lib/budget';
 import { currentMonth, todayISO } from '../../lib/dates';
@@ -66,7 +66,7 @@ function PickStep({
         <FileUp size={40} />
         <strong>{busy ? (progress ?? 'Lecture du fichier…') : 'Choisir un relevé'}</strong>
         <span className="small muted">
-          Relevé CSV, OFX ou PDF, ou captures d’écran (JPG, PNG) : vous pouvez en choisir plusieurs
+          Relevé CSV, OFX ou PDF, ou captures d’écran (JPG, PNG) : tu peux en choisir plusieurs
         </span>
       </button>
       <input
@@ -82,7 +82,7 @@ function PickStep({
       />
       {error && <Notice tone="over" icon={<OctagonAlert size={20} />} title={error} />}
       <Notice tone="info" icon={<ShieldCheck size={20} />} title="Le fichier est lu sur ce téléphone">
-        <div className="small muted">Rien n’est envoyé sur Internet. Les doublons sont détectés si vous réimportez une période.</div>
+        <div className="small muted">Rien n’est envoyé sur Internet. Les doublons sont détectés si tu réimportes une période.</div>
       </Notice>
       {!!profiles?.length && (
         <div className="section">
@@ -102,18 +102,18 @@ function PickStep({
       <div className="section">
         <div className="section-title">Où trouver le fichier ?</div>
         <div className="card small">
-          Dans l’application ou le site de votre banque, ouvrez le compte puis cherchez « Télécharger », « Exporter » ou
-          « Relevé d’opérations » et choisissez le format <strong>CSV</strong> (ou Excel/CSV) ou <strong>OFX</strong>{' '}
-          (parfois appelé « Money »). Choisissez une période d’un ou plusieurs mois : les opérations déjà importées seront
+          Dans l’application ou le site de ta banque, ouvre le compte puis cherche « Télécharger », « Exporter » ou
+          « Relevé d’opérations » et choisis le format <strong>CSV</strong> (ou Excel/CSV) ou <strong>OFX</strong>{' '}
+          (parfois appelé « Money »). Choisis une période d’un ou plusieurs mois : les opérations déjà importées seront
           ignorées.
           <br />
           <br />
-          Vos <strong>relevés PDF</strong> mensuels sont aussi acceptés (rubrique « e-Documents » ou « Relevés »), y compris
+          Tes <strong>relevés PDF</strong> mensuels sont aussi acceptés (rubrique « e-Documents » ou « Relevés »), y compris
           ceux du Crédit Agricole qui regroupent plusieurs comptes.
           <br />
           <br />
-          Vous pouvez aussi importer des <strong>captures d’écran</strong> de la liste des opérations de votre appli
-          bancaire, ou des photos nettes d’un relevé : choisissez-en plusieurs d’un coup si vous avez fait défiler la liste,
+          Tu peux aussi importer des <strong>captures d’écran</strong> de la liste des opérations de ton appli
+          bancaire, ou des photos nettes d’un relevé : choisis-en plusieurs d’un coup si tu as fait défiler la liste,
           les opérations en double sont écartées. Le texte est reconnu sur le téléphone ; le CSV reste le plus fiable.
         </div>
       </div>
@@ -301,7 +301,7 @@ function PreviewStep({
         <Notice tone="warn" icon={<TriangleAlert size={20} />} title={`${plural(counts.probable, 'doublon probable', 'doublons probables')}`}>
           <div className="small muted">
             Même montant à quelques jours près et libellé proche d’une opération existante. Non cochés par défaut :
-            vérifiez-les dans l’onglet « Doublons ».
+            vérifie-les dans l’onglet « Doublons ».
           </div>
         </Notice>
       )}
@@ -416,13 +416,16 @@ function DoneStep({ info, onUndo, onAnother }: { info: DoneInfo; onUndo: () => v
   const { list, map } = useCategories();
   const filter = useBudgetFilter();
   const monthTxs = useMonthTransactions(ym);
+  const planned = usePlanned();
   const todo = useLiveQuery(() => db.transactions.where('batchId').equals(info.batchId).filter((t) => t.categoryId == null).count(), [info.batchId]);
   const alerts = useMemo(
     () =>
       info.to >= `${ym}-01`
-        ? budgetLines(list, spendingByCategory((monthTxs ?? []).filter(filter), map), ym, todayISO()).filter((l) => l.status !== 'ok')
+        ? budgetLines(list, spendingByCategory((monthTxs ?? []).filter(filter), map), ym, todayISO(), planned).filter(
+            (l) => l.status !== 'ok',
+          )
         : [],
-    [info.to, ym, list, monthTxs, filter, map],
+    [info.to, ym, list, monthTxs, filter, map, planned],
   );
   return (
     <>

@@ -90,8 +90,8 @@ export default function Accounts() {
         }
       />
       <p className="small muted" style={{ margin: '0 4px 12px' }}>
-        Ajoutez un compte par relevé importé (autre banque, compte joint, livret). Les doublons sont recherchés compte par
-        compte. Les virements entre vos comptes peuvent être classés dans « Virements internes ».
+        Ajoute un compte par relevé importé (autre banque, compte joint, livret). Les doublons sont recherchés compte par
+        compte. Les virements entre tes comptes peuvent être classés dans « Virements internes ».
       </p>
       <div className="list">
         {accounts.map((a) => (

@@ -1,16 +1,19 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import {
+  ChartPie,
   ChevronRight,
   ClipboardCopy,
   HardDrive,
   History,
   Landmark,
   ListChecks,
+  Repeat,
   ShieldCheck,
   Smartphone,
   Tags,
   Trash2,
   Upload,
+  Wallet,
   WandSparkles,
 } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
@@ -74,15 +77,15 @@ export default function More() {
       await navigator.clipboard.writeText(report);
       clearErrors();
       setIncidents([]);
-      toast('Rapport copié : collez-le dans un message pour le transmettre');
+      toast('Rapport copié : colle-le dans un message pour le transmettre');
     } catch {
-      prompt('Copiez ce rapport :', report);
+      prompt('Copie ce rapport :', report);
     }
   }
 
   async function wipe() {
     if (!confirm('Effacer toutes les données de l’application sur ce téléphone ?')) return;
-    if (prompt('Cette action est définitive. Tapez EFFACER pour confirmer.')?.trim().toUpperCase() !== 'EFFACER') return;
+    if (prompt('Cette action est définitive. Tape EFFACER pour confirmer.')?.trim().toUpperCase() !== 'EFFACER') return;
     await deleteAllData();
     navigate('/');
   }
@@ -91,21 +94,30 @@ export default function More() {
     <main className="screen">
       <Header title="Plus" />
 
-      <div className="section-title">Données</div>
+      <div className="section-title">Mon budget</div>
       <div className="list">
-        <LinkRow to="/import" icon={<Upload size={20} />} title="Importer un relevé" sub="CSV, OFX, PDF ou captures d’écran" />
-        <LinkRow
-          to="/plus/imports"
-          icon={<History size={20} />}
-          title="Historique des imports"
-          sub={counts ? `${plural(counts.imports, 'import', 'imports')} · formats mémorisés` : undefined}
-        />
-        <LinkRow
-          to="/plus/sauvegarde"
-          icon={<HardDrive size={20} />}
-          title="Sauvegarde et restauration"
-          sub={lastBackup ? `Dernière sauvegarde le ${formatDate(lastBackup.slice(0, 10))}` : 'Aucune sauvegarde'}
-        />
+        <LinkRow to="/demarrage" icon={<Wallet size={20} />} title="Refaire mon budget pas à pas" sub="Salaire, loyer, abonnements, budgets" />
+        <LinkRow to="/analyses" icon={<ChartPie size={20} />} title="Analyses" sub="Graphiques, moyennes, commerçants" />
+        <LinkRow to="/analyses/recurrents" icon={<Repeat size={20} />} title="Dépenses récurrentes" sub="Repérées dans tes relevés" />
+      </div>
+
+      <div className="section">
+        <div className="section-title">Données</div>
+        <div className="list">
+          <LinkRow to="/import" icon={<Upload size={20} />} title="Importer un relevé" sub="CSV, OFX, PDF ou captures d’écran" />
+          <LinkRow
+            to="/plus/imports"
+            icon={<History size={20} />}
+            title="Historique des imports"
+            sub={counts ? `${plural(counts.imports, 'import', 'imports')} · formats mémorisés` : undefined}
+          />
+          <LinkRow
+            to="/plus/sauvegarde"
+            icon={<HardDrive size={20} />}
+            title="Sauvegarde et restauration"
+            sub={lastBackup ? `Dernière sauvegarde le ${formatDate(lastBackup.slice(0, 10))}` : 'Aucune sauvegarde'}
+          />
+        </div>
       </div>
 
       <div className="section">
@@ -169,7 +181,7 @@ export default function More() {
                 {counts ? plural(counts.tx, 'opération', 'opérations') : '…'}
                 {storage.usage != null && ` · ${(storage.usage / 1024 / 1024).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} Mo`}
                 {storage.persisted === true && ' · stockage persistant'}
-                {storage.persisted === false && ' · installez l’app pour protéger le stockage'}
+                {storage.persisted === false && ' · installe l’app pour protéger le stockage'}
               </div>
             </div>
           </div>

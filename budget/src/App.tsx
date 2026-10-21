@@ -1,12 +1,12 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ChartPie, Ellipsis, House, ListOrdered, Target } from 'lucide-react';
+import { Ellipsis, House, ListOrdered, PiggyBank } from 'lucide-react';
 import { createContext, lazy, Suspense, useContext, useEffect, useMemo } from 'react';
-import { HashRouter, NavLink, Route, Routes, useLocation } from 'react-router-dom';
+import { HashRouter, Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom';
 import { ToastProvider } from './components/toast';
 import { db } from './db/schema';
 import { upgradeClassification } from './lib/actions';
 import { recordError } from './lib/errorLog';
-import { useBudgetFilter, useCategories } from './hooks/useData';
+import { useBudgetFilter, useCategories, usePlanned } from './hooks/useData';
 import { useThemeMode } from './hooks/useTheme';
 import { budgetLines } from './lib/budget';
 import { currentMonth, monthBounds } from './lib/dates';
@@ -14,9 +14,10 @@ import { spendingByCategory } from './lib/stats';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Loading } from './components/Loading';
 import { UpdateBanner } from './components/UpdateBanner';
-import Home from './screens/Home';
 import Operations from './screens/Operations';
-import Budgets from './screens/Budgets';
+import Month from './screens/Month';
+import Setup from './screens/Setup';
+import Savings from './screens/Savings';
 import More from './screens/More';
 import Categories from './screens/Categories';
 import Rules from './screens/Rules';
@@ -39,23 +40,23 @@ export const useMode = () => useContext(ThemeContext);
 
 function useBudgetAlert(): boolean {
   const { list, map } = useCategories();
+  const planned = usePlanned();
   const filter = useBudgetFilter();
   const ym = currentMonth();
   const { start, end } = monthBounds(ym);
   const txs = useLiveQuery(() => db.transactions.where('date').between(start, end, true, true).toArray(), [start, end]);
   return useMemo(() => {
     if (!txs) return false;
-    return budgetLines(list, spendingByCategory(txs.filter(filter), map), ym).some((l) => l.status === 'over');
-  }, [txs, list, map, filter, ym]);
+    return budgetLines(list, spendingByCategory(txs.filter(filter), map), ym, undefined, planned).some((l) => l.status === 'over');
+  }, [txs, list, map, filter, ym, planned]);
 }
 
 function TabBar() {
   const alert = useBudgetAlert();
   const tabs = [
-    { to: '/', label: 'Accueil', icon: House, end: true },
+    { to: '/', label: 'Budget', icon: House, end: true, dot: alert },
     { to: '/operations', label: 'Opérations', icon: ListOrdered },
-    { to: '/budgets', label: 'Budgets', icon: Target, dot: alert },
-    { to: '/analyses', label: 'Analyses', icon: ChartPie },
+    { to: '/epargne', label: 'Épargne', icon: PiggyBank },
     { to: '/plus', label: 'Plus', icon: Ellipsis },
   ];
   return (
@@ -75,7 +76,7 @@ function TabBar() {
 
 function Layout() {
   const location = useLocation();
-  const fullScreen = location.pathname.startsWith('/import');
+  const fullScreen = location.pathname.startsWith('/import') || location.pathname.startsWith('/demarrage');
   // Corps en accolades : sur Chrome récent, scrollTo() renvoie une promesse que React
   // prendrait pour la fonction de nettoyage de l'effet (« l is not a function »).
   useEffect(() => {
@@ -85,11 +86,13 @@ function Layout() {
     <div className="app">
       <ErrorBoundary key={location.pathname}>
         <Routes>
-          <Route path="/" element={<Home />} />
+          <Route path="/" element={<Month />} />
+          <Route path="/demarrage" element={<Setup />} />
           <Route path="/operations" element={<Operations />} />
           <Route path="/classer" element={<Classify />} />
-          <Route path="/budgets" element={<Budgets />} />
-          <Route path="/budgets/epargne" element={<Budgets tab="goals" />} />
+          <Route path="/epargne" element={<Savings />} />
+          <Route path="/budgets" element={<Navigate to="/" replace />} />
+          <Route path="/budgets/epargne" element={<Navigate to="/epargne" replace />} />
           <Route path="/analyses" element={<Suspense fallback={<Loading />}><Analyses /></Suspense>} />
           <Route path="/analyses/recurrents" element={<Suspense fallback={<Loading />}><Analyses tab="recurring" /></Suspense>} />
           <Route path="/plus" element={<More />} />
@@ -100,7 +103,7 @@ function Layout() {
           <Route path="/plus/sauvegarde" element={<Backup />} />
           <Route path="/plus/installer" element={<Install />} />
           <Route path="/import" element={<ImportFlow />} />
-          <Route path="*" element={<Home />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </ErrorBoundary>
       {!fullScreen && (

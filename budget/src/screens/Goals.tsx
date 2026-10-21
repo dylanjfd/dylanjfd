@@ -353,7 +353,7 @@ export default function Goals() {
     <>
       {goals.length === 0 ? (
         <Empty icon="🐷" title="Aucun objectif">
-          <p>Fixez un montant et une date : l’application calcule combien mettre de côté chaque mois.</p>
+          <p>Fixe un montant et une date : l’application calcule combien mettre de côté chaque mois.</p>
           <button className="btn btn-primary" onClick={() => setFormOpen(true)}>
             <Plus size={18} /> Créer un objectif
           </button>
@@ -363,7 +363,7 @@ export default function Goals() {
           <section className="card">
             <div className="label">À mettre de côté chaque mois</div>
             <div className="hero">{formatEUR(totalPerMonth)}</div>
-            <div className="small muted">pour tenir tous vos objectifs à temps</div>
+            <div className="small muted">pour tenir tous tes objectifs à temps</div>
           </section>
           <div className="section">
             <div className="section-title">

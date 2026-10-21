@@ -54,9 +54,9 @@ export default function Backup() {
   return (
     <main className="screen">
       <Header title="Sauvegarde" back="/plus" />
-      <Notice tone="info" icon={<ShieldCheck size={20} />} title="Vos données ne sont que sur ce téléphone">
+      <Notice tone="info" icon={<ShieldCheck size={20} />} title="Tes données ne sont que sur ce téléphone">
         <div className="small muted">
-          Exportez régulièrement un fichier de sauvegarde (dans Fichiers, iCloud Drive, Google Drive…) pour ne rien perdre
+          Exporte régulièrement un fichier de sauvegarde (dans Fichiers, iCloud Drive, Google Drive…) pour ne rien perdre
           en cas de changement ou de perte du téléphone.
         </div>
       </Notice>
@@ -66,7 +66,7 @@ export default function Backup() {
         <div className="card">
           <p className="small muted" style={{ marginBottom: 12 }}>
             {lastBackup ? `Dernière sauvegarde le ${formatDate(lastBackup.slice(0, 10))}.` : 'Aucune sauvegarde pour l’instant.'} Le fichier
-            JSON contient toutes vos opérations, catégories, règles, budgets et objectifs.
+            JSON contient toutes tes opérations, catégories, règles, budgets et objectifs.
           </p>
           <button className="btn btn-primary btn-block" disabled={busy} onClick={exportData}>
             <Download size={20} /> Exporter mes données

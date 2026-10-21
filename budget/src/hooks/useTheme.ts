@@ -3,7 +3,7 @@ import { useSetting } from './useData';
 
 export type ThemeSetting = 'auto' | 'light' | 'dark';
 
-const BG = { light: '#f4f5f8', dark: '#0b0d12' };
+const BG = { light: '#f2efe9', dark: '#10120f' };
 
 function systemDark(): boolean {
   return typeof matchMedia !== 'undefined' && matchMedia('(prefers-color-scheme: dark)').matches;

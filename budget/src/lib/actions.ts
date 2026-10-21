@@ -3,6 +3,7 @@ import { DEFAULT_RULES_VERSION, RULES_ADDED_IN_V2, seedDatabase } from '../db/se
 import { db, TABLES, type CategorySource, type ImportBatch, type Transaction } from '../db/schema';
 import { buildMemory, classify, makeContext, type ClassifyContext } from './classify';
 import { PLAN_KEY, type Plan } from './plan';
+import { retryWrite } from './recovery';
 import { matchesPattern, sortRules } from './rules';
 import { merchantOf, normalizeLabel } from './text';
 
@@ -204,7 +205,7 @@ export async function getSetting<T>(key: string, fallback: T): Promise<T> {
 }
 
 export async function setSetting(key: string, value: unknown): Promise<void> {
-  await db.settings.put({ key, value });
+  await retryWrite(() => db.settings.put({ key, value }));
 }
 
 /** Efface toutes les données puis recrée les catégories et règles par défaut. */

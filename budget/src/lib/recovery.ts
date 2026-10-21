@@ -38,7 +38,7 @@ export function reloadOnce(): boolean {
   return true;
 }
 
-class Timeout extends Error {}
+export class Timeout extends Error {}
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -75,6 +75,23 @@ export async function checkDatabase({ reopenIfSlow = false } = {}): Promise<void
     } catch {
       reloadOnce();
     }
+  }
+}
+
+/**
+ * Écriture avec une seconde chance : si le téléphone a coupé la base (app restée en
+ * arrière-plan) ou si elle ne répond plus, on la rouvre et on réessaie une fois.
+ * Réservé aux écritures qu'on peut refaire sans risque (put, update).
+ */
+export async function retryWrite<T>(write: () => Promise<T>, ms = 6000): Promise<T> {
+  try {
+    return await withTimeout(write(), ms);
+  } catch (e) {
+    if (!(e instanceof Timeout) && !isRecoverable(e)) throw e;
+    recordError(e, 'écriture : nouvel essai après réouverture de la base');
+    db.close({ disableAutoOpen: false });
+    await withTimeout(db.open(), 4000);
+    return withTimeout(write(), ms);
   }
 }
 

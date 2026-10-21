@@ -12,6 +12,8 @@ import { db, type Category, type Transaction } from '../db/schema';
 import { CAT } from '../db/seed';
 import { useAccounts, useBudgetFilter, useCategories, useMonthTransactions, usePlan, useSetting } from '../hooks/useData';
 import { savePlan } from '../lib/actions';
+import { recordError } from '../lib/errorLog';
+import { retryWrite } from '../lib/recovery';
 import { addMonths, currentMonth, diffDays, todayISO } from '../lib/dates';
 import { centsToInput, formatDate, formatDayHeading, formatEUR, formatMonth, formatMonthShort, plural } from '../lib/format';
 import { parseAmount } from '../lib/import/parse';
@@ -45,6 +47,27 @@ function ItemMark({ item, category }: { item: PlanItem; category?: Category }) {
   );
 }
 
+/**
+ * Enregistre puis ferme la feuille ; en cas d'échec, la feuille reste ouverte avec un message
+ * (au lieu d'un bouton qui ne fait rien).
+ */
+function useSave(onClose: () => void, setBusy: (b: boolean) => void) {
+  const toast = useToast();
+  return async (write: () => Promise<unknown>, done: string) => {
+    setBusy(true);
+    try {
+      await write();
+      setBusy(false);
+      toast(done);
+      onClose();
+    } catch (e) {
+      setBusy(false);
+      recordError(e, 'enregistrement du budget');
+      toast('Enregistrement impossible pour le moment. Réessaie dans un instant.');
+    }
+  };
+}
+
 /** Ajout ou modification d'un revenu régulier ou d'une dépense fixe. */
 function ItemSheet({
   plan,
@@ -59,60 +82,64 @@ function ItemSheet({
   categoryId: number;
   onClose: () => void;
 }) {
-  const toast = useToast();
   const [name, setName] = useState(item?.name ?? (kind === 'income' ? 'Salaire' : ''));
   const [amount, setAmount] = useState(centsToInput(item?.amountCents));
   const [day, setDay] = useState(item?.day ?? 1);
+  const [busy, setBusy] = useState(false);
   const cents = parseAmount(amount);
   const valid = name.trim() !== '' && cents != null && cents !== 0;
   const listKey = kind === 'income' ? 'incomes' : 'fixed';
+  const run = useSave(onClose, setBusy);
 
-  async function save() {
-    if (!valid) return;
+  function save() {
+    if (!valid || busy) return;
     const next: PlanItem = { ...(item ?? { id: newId(), categoryId }), name: name.trim(), amountCents: Math.abs(cents!), day };
     const list = plan[listKey];
-    await savePlan({ ...plan, [listKey]: item ? list.map((i) => (i.id === item.id ? next : i)) : [...list, next] });
-    toast(item ? 'Modifié' : 'Ajouté');
-    onClose();
+    void run(() => savePlan({ ...plan, [listKey]: item ? list.map((i) => (i.id === item.id ? next : i)) : [...list, next] }), item ? 'Modifié' : 'Ajouté');
   }
 
-  async function remove() {
-    if (!item) return;
-    await savePlan({ ...plan, [listKey]: plan[listKey].filter((i) => i.id !== item.id) });
-    toast('Supprimé');
-    onClose();
+  function remove() {
+    if (!item || busy) return;
+    void run(() => savePlan({ ...plan, [listKey]: plan[listKey].filter((i) => i.id !== item.id) }), 'Supprimé');
   }
 
   return (
     <Sheet open onClose={onClose} title={item ? item.name : kind === 'income' ? 'Revenu régulier' : 'Dépense fixe'}>
-      <label className="field">
-        <span className="label">Nom</span>
-        <input className="input" value={name} placeholder={kind === 'income' ? 'Salaire, CAF…' : 'Loyer, assurance…'} onChange={(e) => setName(e.target.value)} />
-      </label>
-      <label className="field">
-        <span className="label">Montant par mois</span>
-        <input className="input input-amount" inputMode="decimal" placeholder="0 €" value={amount} onChange={(e) => setAmount(e.target.value)} />
-      </label>
-      <label className="field">
-        <span className="label">{kind === 'income' ? 'Versé le' : 'Payé le'}</span>
-        <select className="select" value={day} onChange={(e) => setDay(Number(e.target.value))}>
-          {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
-            <option key={d} value={d}>
-              {d} du mois
-            </option>
-          ))}
-        </select>
-      </label>
-      <div className="stack">
-        <button className="btn btn-primary btn-block" disabled={!valid} onClick={() => void save()}>
-          Enregistrer
-        </button>
-        {item && (
-          <button className="btn btn-danger btn-block" onClick={() => void remove()}>
-            <Trash2 size={18} /> Supprimer
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          save();
+        }}
+      >
+        <label className="field">
+          <span className="label">Nom</span>
+          <input className="input" value={name} placeholder={kind === 'income' ? 'Salaire, CAF…' : 'Loyer, assurance…'} onChange={(e) => setName(e.target.value)} />
+        </label>
+        <label className="field">
+          <span className="label">Montant par mois</span>
+          <input className="input input-amount" inputMode="decimal" placeholder="0 €" value={amount} onChange={(e) => setAmount(e.target.value)} />
+        </label>
+        <label className="field">
+          <span className="label">{kind === 'income' ? 'Versé le' : 'Payé le'}</span>
+          <select className="select" value={day} onChange={(e) => setDay(Number(e.target.value))}>
+            {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+              <option key={d} value={d}>
+                {d} du mois
+              </option>
+            ))}
+          </select>
+        </label>
+        <div className="stack">
+          <button type="submit" className="btn btn-primary btn-block" disabled={!valid || busy}>
+            {busy ? 'Enregistrement…' : 'Enregistrer'}
           </button>
-        )}
-      </div>
+          {item && (
+            <button type="button" className="btn btn-danger btn-block" disabled={busy} onClick={remove}>
+              <Trash2 size={18} /> Supprimer
+            </button>
+          )}
+        </div>
+      </form>
     </Sheet>
   );
 }
@@ -133,16 +160,19 @@ function CategorySheet({
   onClose: () => void;
   onEditItem: (item: PlanItem | null) => void;
 }) {
-  const toast = useToast();
   const fixed = plan.fixed.filter((f) => f.categoryId === category.id);
   const [budget, setBudget] = useState(centsToInput(category.budgetCents));
+  const [busy, setBusy] = useState(false);
   const cents = parseAmount(budget);
+  const run = useSave(onClose, setBusy);
 
-  async function saveBudget() {
+  function saveBudget() {
+    if (busy) return;
     const value = cents != null && cents !== 0 ? Math.abs(cents) : null;
-    await db.categories.update(category.id, { budgetCents: value });
-    toast(value ? `Budget ${category.name} : ${formatEUR(value)} par mois` : 'Budget retiré');
-    onClose();
+    void run(
+      () => retryWrite(() => db.categories.update(category.id, { budgetCents: value })),
+      value ? `Budget ${category.name} : ${formatEUR(value)} par mois` : 'Budget retiré',
+    );
   }
 
   return (
@@ -178,8 +208,8 @@ function CategorySheet({
         <input className="input input-amount" inputMode="decimal" placeholder="0 €" value={budget} onChange={(e) => setBudget(e.target.value)} />
       </label>
       <div className="stack">
-        <button className="btn btn-primary btn-block" onClick={() => void saveBudget()}>
-          Enregistrer
+        <button className="btn btn-primary btn-block" disabled={busy} onClick={saveBudget}>
+          {busy ? 'Enregistrement…' : 'Enregistrer'}
         </button>
         <button className="btn btn-block" onClick={() => onEditItem(null)}>
           <Plus size={18} /> Ajouter une dépense fixe

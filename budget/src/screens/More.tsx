@@ -1,8 +1,10 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ChevronRight, HardDrive, History, Landmark, ShieldCheck, Smartphone, Tags, Trash2, Upload, WandSparkles } from 'lucide-react';
+import { ChevronRight, ClipboardCopy, HardDrive, History, Landmark, ShieldCheck, Smartphone, Tags, Trash2, Upload, WandSparkles } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useToast } from '../components/toast';
 import { Header, Segmented } from '../components/ui';
+import { clearErrors, errorReport, readErrors } from '../lib/errorLog';
 import { db } from '../db/schema';
 import { useSetting } from '../hooks/useData';
 import type { ThemeSetting } from '../hooks/useTheme';
@@ -47,6 +49,21 @@ export default function More() {
   }));
   const storage = useStorageInfo();
   const navigate = useNavigate();
+
+  const [incidents, setIncidents] = useState(readErrors);
+  const toast = useToast();
+
+  async function copyReport() {
+    const report = errorReport();
+    try {
+      await navigator.clipboard.writeText(report);
+      clearErrors();
+      setIncidents([]);
+      toast('Rapport copié : collez-le dans un message pour le transmettre');
+    } catch {
+      prompt('Copiez ce rapport :', report);
+    }
+  }
 
   async function wipe() {
     if (!confirm('Effacer toutes les données de l’application sur ce téléphone ?')) return;
@@ -126,6 +143,19 @@ export default function More() {
               </div>
             </div>
           </div>
+          {incidents.length > 0 && (
+            <button className="row" onClick={copyReport}>
+              <span className="cat-icon" style={{ background: 'var(--primary-soft)', boxShadow: 'none', color: 'var(--primary)' }}>
+                <ClipboardCopy size={20} />
+              </span>
+              <div className="row-main">
+                <div className="row-title">Rapport technique</div>
+                <div className="row-sub" style={{ whiteSpace: 'normal' }}>
+                  {plural(incidents.length, 'incident corrigé', 'incidents corrigés')} automatiquement · toucher pour copier
+                </div>
+              </div>
+            </button>
+          )}
         </div>
       </div>
 

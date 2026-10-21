@@ -2,6 +2,7 @@
 import { DEFAULT_RULES_VERSION, RULES_ADDED_IN_V2, seedDatabase } from '../db/seed';
 import { db, TABLES, type CategorySource, type ImportBatch, type Transaction } from '../db/schema';
 import { buildMemory, classify, makeContext, type ClassifyContext } from './classify';
+import { PLAN_KEY, type Plan } from './plan';
 import { matchesPattern, sortRules } from './rules';
 import { merchantOf, normalizeLabel } from './text';
 
@@ -191,6 +192,10 @@ export async function deleteAccount(id: number): Promise<void> {
     await db.importProfiles.filter((p) => p.accountId === id).modify({ accountId: undefined });
     await db.accounts.delete(id);
   });
+}
+
+export async function savePlan(plan: Plan): Promise<void> {
+  await setSetting(PLAN_KEY, plan);
 }
 
 export async function getSetting<T>(key: string, fallback: T): Promise<T> {

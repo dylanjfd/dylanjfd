@@ -29,8 +29,8 @@ export default defineConfig({
         scope: base,
         display: 'standalone',
         orientation: 'portrait',
-        background_color: '#0b0d12',
-        theme_color: '#4f46e5',
+        background_color: '#f2efe9',
+        theme_color: '#2f5d4f',
         categories: ['finance', 'productivity'],
         icons: [
           { src: 'icons/pwa-192x192.png', sizes: '192x192', type: 'image/png' },
@@ -39,7 +39,7 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,mjs,css,html,svg,png,webmanifest}'],
+        globPatterns: ['**/*.{js,mjs,css,html,svg,png,webmanifest,woff2}'],
         // Le moteur OCR (plusieurs Mo) n'est téléchargé qu'au premier import d'image,
         // puis gardé en cache pour fonctionner hors ligne.
         globIgnores: ['**/ocr/**'],

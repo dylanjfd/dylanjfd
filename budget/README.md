@@ -6,15 +6,25 @@ hors ligne.
 
 ## Fonctionnalités
 
-| Écran | Contenu |
+L’application suit l’esprit « kakeibo » : on prépare son budget du mois, puis on compare le **prévu** au **réel**. Une
+seule question à la fois, peu d’écrans, un ton tutoyé et un thème calme (crème et vert, police Nunito servie par l’app).
+
+**Démarrage guidé** (au premier lancement, ou Plus › Refaire mon budget pas à pas) : salaire et jour de versement, loyer,
+abonnements à choisir dans une grille (Netflix, Spotify, forfait mobile, box, salle de sport…), puis un budget pour le
+transport, les courses, les restaurants (par semaine ou par mois) et le shopping. Un anneau « restant » se remplit à
+chaque réponse ; le résumé montre dépenses, épargne prévue et calendrier du mois. Si des relevés sont déjà importés,
+chaque réponse est pré-remplie d’après eux (salaire, loyer, abonnements récurrents, moyenne des 3 derniers mois).
+
+| Onglet | Contenu |
 |---|---|
-| **Accueil** | Solde du mois (revenus, dépenses, épargne), budgets à surveiller, reste à vivre, prochains prélèvements, hausses d’abonnements, opérations à classer, rappel de sauvegarde |
+| **Budget** | Bandeau du mois (mois précédent/suivant) et trois vues. **Budget** : Prévu / Réel, anneau des dépenses par catégorie avec le % d’épargne (ou le reste) au centre, revenus réguliers, dépenses par groupe avec barre de progression et dépassements ; chaque groupe se modifie (budget, dépenses fixes datées). **Calendrier** : échéances prévues et solde réel de chaque jour, détail du jour choisi. **Prévision** : épargne estimée en fin de mois, ce qu’il reste à dépenser (et par jour), dépassements, échéances à venir |
 | **Opérations** | Liste par mois, recherche (libellé, note ou montant), filtres par catégorie et par compte, fiche détaillée (catégorie, note, suppression), saisie manuelle |
-| **Budgets** | Plafond mensuel par catégorie, barre de progression, alertes à 80 % et 100 %, montant restant et « reste par jour » |
-| **Budgets › Objectifs d’épargne** | Montant cible et date limite, somme à mettre de côté par mois, versements manuels ou virements reconnus par mot-clé (ex. « LIVRET A ») |
-| **Analyses › Graphiques** | Répartition des dépenses (donut), dépenses et revenus sur 12 mois, comparaison avec la moyenne des 3 mois précédents, principaux commerçants |
-| **Analyses › Récurrents** | Loyer, abonnements, crédits et salaire détectés automatiquement, prochaine date, total des charges fixes, reste à vivre, hausses de prix |
-| **Plus** | Import, historique des imports (annulables), sauvegarde/restauration JSON, catégories, règles, comptes, thème clair/sombre, installation |
+| **Épargne** | Objectifs : montant cible et date limite, somme à mettre de côté par mois, versements manuels ou virements reconnus par mot-clé (ex. « LIVRET A ») |
+| **Plus** | Refaire son budget, analyses (répartition, 12 mois, moyenne, commerçants, dépenses récurrentes), import, historique des imports (annulables), sauvegarde/restauration JSON, classement (écran Classer, catégories, règles), comptes, thème clair/sombre, installation |
+
+Le budget prévu (revenus et dépenses fixes avec leur jour) est enregistré dans les réglages (`plan`, voir
+`src/lib/plan.ts`) et suit les sauvegardes ; les budgets libres restent sur les catégories. Le prévu d’une catégorie est
+la somme de ses dépenses fixes et de son budget ; les alertes (pastille de l’onglet Budget, fin d’import) s’en servent.
 
 ### Import des relevés bancaires
 
@@ -66,7 +76,7 @@ Chaque opération passe par plusieurs étapes, de la plus sûre à la moins sûr
    n’est jamais devinée comme revenu, un remboursement par carte d’un commerçant inconnu reste à classer.
 
 Les étapes 2, 5 et 6 donnent une catégorie « devinée » (marquée dans l’aperçu d’import et dans la fiche). L’écran
-**Classer** (Accueil ou Plus) regroupe par commerçant les opérations à classer, avec des catégories proposées selon leur
+**Classer** (onglet Budget en mode Réel, fin d’import ou Plus) regroupe par commerçant les opérations à classer, avec des catégories proposées selon leur
 nature (prélèvement, paiement carte, virement…), et les classements devinés à valider. Un choix s’applique aux
 opérations semblables déjà enregistrées et aux prochains imports ; « Annuler » le défait. Les catégories choisies à la
 main ne sont jamais modifiées. À la mise à jour, les nouveaux mots-clés sont ajoutés et les opérations existantes
@@ -117,7 +127,8 @@ src/
 │  ├─ import/     décodage, montants et dates, analyse CSV, OFX, PDF, images (OCR), doublons
 │  ├─ rules.ts    recherche des mots-clés
 │  ├─ classify.ts classement : règles, mémoire des choix, mots proches, nature de l’opération
-│  ├─ budget.ts   plafonds, alertes, reste par jour
+│  ├─ plan.ts     budget prévu : revenus, dépenses fixes, prévu/réel, calendrier, prévision
+│  ├─ budget.ts   alertes de budget, reste par jour
 │  ├─ recurring.ts détection des dépenses récurrentes
 │  ├─ stats.ts    totaux, répartition, moyennes, commerçants
 │  ├─ goals.ts    objectifs d’épargne

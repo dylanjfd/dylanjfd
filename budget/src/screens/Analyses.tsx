@@ -133,7 +133,7 @@ function Charts() {
       <MonthPicker value={month} onChange={setMonth} />
       {!hasData ? (
         <Empty icon="📊" title="Pas encore de données">
-          <p>Importez un relevé pour voir vos graphiques.</p>
+          <p>Importe un relevé pour voir tes graphiques.</p>
         </Empty>
       ) : (
         <>
@@ -341,7 +341,7 @@ export default function Analyses({ tab = 'charts' }: { tab?: 'charts' | 'recurri
   const navigate = useNavigate();
   return (
     <main className="screen">
-      <Header title="Analyses" />
+      <Header title="Analyses" back />
       <Segmented
         options={[
           { value: 'charts', label: 'Graphiques' },

@@ -161,9 +161,9 @@ export default function Classify() {
           <p className="muted">Chaque nouvelle opération importée sera classée automatiquement.</p>
         </Empty>
       ) : (
-        <Notice tone="info" icon={<Sparkles size={20} />} title={`${ratio} % de vos opérations sont classées`}>
+        <Notice tone="info" icon={<Sparkles size={20} />} title={`${ratio} % de tes opérations sont classées`}>
           <div className="small muted">
-            L’app classe toute seule ce qu’elle reconnaît. Pour le reste, choisissez une catégorie : votre choix
+            L’app classe toute seule ce qu’elle reconnaît. Pour le reste, choisis une catégorie : ton choix
             s’applique aux opérations semblables, et à celles des prochains imports.
           </div>
         </Notice>
@@ -188,7 +188,7 @@ export default function Classify() {
             <button onClick={() => void confirm(guessed)}>Tout valider</button>
           </div>
           <p className="small muted" style={{ margin: '0 4px 10px' }}>
-            Elles comptent déjà dans vos budgets. Vérifiez-les quand vous avez un moment.
+            Elles comptent déjà dans ton budget. Vérifie-les quand tu as un moment.
           </p>
           {guessed.slice(0, shown.guessed).map(card)}
           {guessed.length > shown.guessed && (

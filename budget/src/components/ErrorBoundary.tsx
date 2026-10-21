@@ -56,7 +56,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode; fallback?: R
             🔄
           </div>
           <h2>L’affichage a rencontré un problème</h2>
-          <p>Vos données ne sont pas perdues : elles restent enregistrées sur ce téléphone.</p>
+          <p>Tes données ne sont pas perdues : elles restent enregistrées sur ce téléphone.</p>
           <button className="btn btn-primary btn-block" onClick={() => location.reload()}>
             Recharger
           </button>

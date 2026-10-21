@@ -149,7 +149,7 @@ export default function Operations() {
 
       {txs && filtered.length === 0 && (
         <Empty icon={searching ? '🔍' : '🗓️'} title={searching ? 'Aucun résultat' : 'Aucune opération'}>
-          <p>{searching ? 'Essayez un autre mot ou un montant (ex. 12,50).' : 'Rien sur cette période avec ces filtres.'}</p>
+          <p>{searching ? 'Essaie un autre mot ou un montant (ex. 12,50).' : 'Rien sur cette période avec ces filtres.'}</p>
           {(cat || searching) && (
             <button
               className="btn btn-sm"

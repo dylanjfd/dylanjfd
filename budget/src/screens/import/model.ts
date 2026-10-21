@@ -26,8 +26,8 @@ export class ImportError extends Error {}
 
 function sniffBinary(bytes: Uint8Array): string | null {
   const head = Array.from(bytes.slice(0, 4));
-  if (head[0] === 0x50 && head[1] === 0x4b) return 'Ce fichier est un classeur Excel (.xlsx). Exportez plutôt votre relevé au format CSV ou OFX depuis l’espace client de votre banque.';
-  if (head[0] === 0xd0 && head[1] === 0xcf) return 'Ce fichier est un classeur Excel (.xls). Exportez plutôt votre relevé au format CSV ou OFX.';
+  if (head[0] === 0x50 && head[1] === 0x4b) return 'Ce fichier est un classeur Excel (.xlsx). Exporte plutôt ton relevé au format CSV ou OFX depuis l’espace client de ta banque.';
+  if (head[0] === 0xd0 && head[1] === 0xcf) return 'Ce fichier est un classeur Excel (.xls). Exporte plutôt ton relevé au format CSV ou OFX.';
   return null;
 }
 
@@ -46,7 +46,7 @@ async function readImages(files: File[], onProgress: (text: string) => void): Pr
   for (const f of files) {
     const kind = imageKind(new Uint8Array(await f.slice(0, 16).arrayBuffer()));
     if (kind === 'heic')
-      throw new ImportError('Les photos HEIC ne sont pas lues : faites plutôt une capture d’écran, ou choisissez le format JPG.');
+      throw new ImportError('Les photos HEIC ne sont pas lues : fais plutôt une capture d’écran, ou choisis le format JPG.');
     if (!kind) throw new ImportError(`« ${f.name} » n’est pas une image JPG ou PNG.`);
   }
   // Le moteur de reconnaissance de texte n'est chargé que pour les images.
@@ -54,7 +54,7 @@ async function readImages(files: File[], onProgress: (text: string) => void): Pr
   const { items, skipped, sections, textLength } = await readImageStatement(files, (ratio, step) =>
     onProgress(`${step} ${Math.round(ratio * 100)} %`),
   );
-  if (textLength < 20) throw new ImportError('Aucun texte lisible dans cette image : essayez une capture plus nette.');
+  if (textLength < 20) throw new ImportError('Aucun texte lisible dans cette image : essaie une capture plus nette.');
   if (items.length === 0)
     throw new ImportError(
       'Aucune opération reconnue. Prenez une capture nette de la liste des opérations (dates, libellés et montants visibles), ou importez le relevé PDF ou CSV.',
@@ -79,7 +79,7 @@ async function readPdf(file: File, bytes: Uint8Array, onProgress: (text: string)
   let password: string | undefined;
   let scanned = false;
   const ask = () => {
-    const p = prompt('Ce PDF est protégé. Saisissez son mot de passe (il n’est pas enregistré) :');
+    const p = prompt('Ce PDF est protégé. Saisis son mot de passe (il n’est pas enregistré) :');
     if (p !== null) password = p;
     return p;
   };
@@ -97,7 +97,7 @@ async function readPdf(file: File, bytes: Uint8Array, onProgress: (text: string)
     });
     if (items.length === 0)
       throw new ImportError(
-        'Aucune opération reconnue dans ce PDF. Vérifiez qu’il s’agit bien d’un relevé de compte, ou exportez-le en CSV depuis votre banque.',
+        'Aucune opération reconnue dans ce PDF. Vérifie qu’il s’agit bien d’un relevé de compte, ou exporte-le en CSV depuis ta banque.',
       );
     return { kind: scanned ? 'image' : 'pdf', fileName: file.name, items, skipped, sections };
   } catch (e) {

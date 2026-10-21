@@ -155,7 +155,7 @@ export function classify(t: Tx, ctx: ClassifyContext): Classification {
 
   const recalled = t.merchant ? recall(memory, t.merchant, ids) : null;
   if (recalled && recalled.n >= 2 && recalled.share >= 2 / 3)
-    return { categoryId: recalled.categoryId, source: 'auto', reason: 'comme vos opérations précédentes' };
+    return { categoryId: recalled.categoryId, source: 'auto', reason: 'comme tes opérations précédentes' };
 
   const keyword = categorize(t.labelNorm, ctx.rules);
   // Un salaire versé par CARREFOUR reste un revenu ; « INTERETS LIVRET A » reste de l'épargne.
@@ -164,7 +164,7 @@ export function classify(t: Tx, ctx: ClassifyContext): Classification {
   if (keyword !== null) return { categoryId: keyword, source: 'rule' };
 
   if (recalled && plausible(recalled.categoryId))
-    return { categoryId: recalled.categoryId, source: 'auto', reason: 'comme votre dernier choix' };
+    return { categoryId: recalled.categoryId, source: 'auto', reason: 'comme ton dernier choix' };
 
   const near = fuzzyKeyword(t.labelNorm, ctx.fuzzy);
   if (near && plausible(near.categoryId))

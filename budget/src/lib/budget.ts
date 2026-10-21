@@ -28,21 +28,25 @@ export function perDay(remaining: number, ym: string, today = todayISO()): numbe
   return Math.max(0, Math.floor(remaining / days));
 }
 
-export function budgetLine(category: Category, spent: number, ym: string, today = todayISO()): BudgetLine {
-  const budget = category.budgetCents ?? 0;
+export function budgetLine(category: Category, spent: number, ym: string, today = todayISO(), budget = category.budgetCents ?? 0): BudgetLine {
   const ratio = budget > 0 ? spent / budget : 0;
   const remaining = budget - spent;
   return { category, spent, budget, ratio, remaining, perDay: perDay(remaining, ym, today), status: budgetStatus(ratio) };
 }
 
-/** Lignes de budget des catégories de dépenses qui ont un plafond. */
+/**
+ * Lignes de budget des catégories de dépenses qui ont un montant prévu :
+ * `planned` (dépenses fixes + budget) s'il est fourni, sinon le plafond de la catégorie.
+ */
 export function budgetLines(
   categories: Category[],
   spending: Map<number | null, number>,
   ym: string,
   today = todayISO(),
+  planned?: Map<number, number>,
 ): BudgetLine[] {
+  const budgetOf = (c: Category) => (planned ? (planned.get(c.id) ?? 0) : (c.budgetCents ?? 0));
   return categories
-    .filter((c) => c.kind === 'expense' && (c.budgetCents ?? 0) > 0)
-    .map((c) => budgetLine(c, spending.get(c.id) ?? 0, ym, today));
+    .filter((c) => c.kind === 'expense' && budgetOf(c) > 0)
+    .map((c) => budgetLine(c, spending.get(c.id) ?? 0, ym, today, budgetOf(c)));
 }

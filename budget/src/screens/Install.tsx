@@ -75,7 +75,7 @@ export default function Install() {
                     Touchez le bouton Partager <Share size={16} style={{ verticalAlign: -2 }} /> en bas de l’écran.
                   </span>
                 </li>
-                <li>Choisissez « Sur l’écran d’accueil », puis « Ajouter ».</li>
+                <li>Choisis « Sur l’écran d’accueil », puis « Ajouter ».</li>
               </ol>
             </div>
           </div>
@@ -85,7 +85,7 @@ export default function Install() {
             <div className="card">
               <ol className="steps-list">
                 <li>Ouvrez le menu ⋮ en haut à droite.</li>
-                <li>Choisissez « Installer l’application » ou « Ajouter à l’écran d’accueil ».</li>
+                <li>Choisis « Installer l’application » ou « Ajouter à l’écran d’accueil ».</li>
               </ol>
             </div>
           </div>

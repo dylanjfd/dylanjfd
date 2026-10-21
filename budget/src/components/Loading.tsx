@@ -1,25 +1,27 @@
 import { useEffect, useState } from 'react';
-import { checkDatabase } from '../lib/recovery';
+import { checkDatabase, reloadOnce } from '../lib/recovery';
 
-/** Indicateur de chargement ; si la base ne répond pas, tente de la rouvrir puis propose de recharger. */
+/** Indicateur de chargement ; si la base ne répond pas, la rouvre, puis recharge la page. */
 export function Loading() {
   const [visible, setVisible] = useState(false);
-  const [slow, setSlow] = useState(false);
+  const [stuck, setStuck] = useState(false);
   useEffect(() => {
     const show = setTimeout(() => setVisible(true), 200);
-    const check = setTimeout(() => void checkDatabase(), 2000);
-    const late = setTimeout(() => setSlow(true), 6000);
+    const check = setTimeout(() => void checkDatabase({ reopenIfSlow: true }), 2500);
+    const reload = setTimeout(() => {
+      if (!reloadOnce()) setStuck(true);
+    }, 9000);
     return () => {
       clearTimeout(show);
       clearTimeout(check);
-      clearTimeout(late);
+      clearTimeout(reload);
     };
   }, []);
   if (!visible) return <div className="loading" />;
   return (
     <div className="loading" role="status">
       <span className="spinner" aria-hidden="true" />
-      {slow ? (
+      {stuck ? (
         <>
           <p className="small muted">Le chargement prend plus de temps que prévu.</p>
           <button className="btn btn-sm" onClick={() => location.reload()}>

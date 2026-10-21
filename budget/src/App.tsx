@@ -95,7 +95,11 @@ function Layout() {
           <Route path="*" element={<Home />} />
         </Routes>
       </ErrorBoundary>
-      {!fullScreen && <TabBar />}
+      {!fullScreen && (
+        <ErrorBoundary fallback={null}>
+          <TabBar />
+        </ErrorBoundary>
+      )}
     </div>
   );
 }

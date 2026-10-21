@@ -9,6 +9,7 @@ import { formatDate, formatEUR, formatMonth, formatMonthShort, formatPercent, pl
 import { colorHex } from '../lib/palette';
 import { averageSpending, spendingByCategory, topMerchants, totalsByMonth } from '../lib/stats';
 import { prettyMerchant } from '../lib/text';
+import { Loading } from '../components/Loading';
 import Recurring from './Recurring';
 
 const CHROME = {
@@ -123,7 +124,7 @@ function Charts() {
     return { slices, total, series, ticks, comparison, monthCount, avgTotal, merchants: topMerchants(monthTxs, map, 8) };
   }, [txs, filter, month, map, mode, first, chrome.unclassified]);
 
-  if (!txs) return null;
+  if (!txs) return <Loading />;
   const isCurrent = month === currentMonth();
   const hasData = data.series.some((s) => s.income || s.expenses);
 

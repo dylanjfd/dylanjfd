@@ -23,6 +23,7 @@ import { loadDemoData } from '../lib/demo';
 import { formatDate, formatEUR, formatMonth, plural } from '../lib/format';
 import { spendingByCategory, totals } from '../lib/stats';
 import { prettyMerchant } from '../lib/text';
+import { Loading } from '../components/Loading';
 import { isStandalone } from './Install';
 
 function Welcome() {
@@ -94,7 +95,7 @@ export default function Home() {
   );
   const increases = (recurring?.summary.charges ?? []).filter((i) => i.increase > 0);
 
-  if (count === undefined) return null;
+  if (count === undefined) return <Loading />;
   if (count === 0)
     return (
       <main className="screen">

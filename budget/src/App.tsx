@@ -9,6 +9,8 @@ import { useThemeMode } from './hooks/useTheme';
 import { budgetLines } from './lib/budget';
 import { currentMonth, monthBounds } from './lib/dates';
 import { spendingByCategory } from './lib/stats';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { Loading } from './components/Loading';
 import { UpdateBanner } from './components/UpdateBanner';
 import Home from './screens/Home';
 import Operations from './screens/Operations';
@@ -22,8 +24,12 @@ import Backup from './screens/Backup';
 import Install from './screens/Install';
 import ImportFlow from './screens/import/ImportFlow';
 
-// Les graphiques (Recharts) sont chargés à la demande pour alléger le démarrage.
-const Analyses = lazy(() => import('./screens/Analyses'));
+// Les graphiques (Recharts) sont chargés à la demande pour alléger le démarrage,
+// avec un second essai si le réseau ou le cache a raté le premier.
+const loadAnalyses = () => import('./screens/Analyses');
+const Analyses = lazy(() =>
+  loadAnalyses().catch(() => new Promise<void>((r) => setTimeout(r, 800)).then(loadAnalyses)),
+);
 
 const ThemeContext = createContext<'light' | 'dark'>('light');
 export const useMode = () => useContext(ThemeContext);
@@ -70,23 +76,25 @@ function Layout() {
   useEffect(() => window.scrollTo(0, 0), [location.pathname]);
   return (
     <div className="app">
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/operations" element={<Operations />} />
-        <Route path="/budgets" element={<Budgets />} />
-        <Route path="/budgets/epargne" element={<Budgets tab="goals" />} />
-        <Route path="/analyses" element={<Suspense><Analyses /></Suspense>} />
-        <Route path="/analyses/recurrents" element={<Suspense><Analyses tab="recurring" /></Suspense>} />
-        <Route path="/plus" element={<More />} />
-        <Route path="/plus/categories" element={<Categories />} />
-        <Route path="/plus/regles" element={<Rules />} />
-        <Route path="/plus/comptes" element={<Accounts />} />
-        <Route path="/plus/imports" element={<ImportHistory />} />
-        <Route path="/plus/sauvegarde" element={<Backup />} />
-        <Route path="/plus/installer" element={<Install />} />
-        <Route path="/import" element={<ImportFlow />} />
-        <Route path="*" element={<Home />} />
-      </Routes>
+      <ErrorBoundary key={location.pathname}>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/operations" element={<Operations />} />
+          <Route path="/budgets" element={<Budgets />} />
+          <Route path="/budgets/epargne" element={<Budgets tab="goals" />} />
+          <Route path="/analyses" element={<Suspense fallback={<Loading />}><Analyses /></Suspense>} />
+          <Route path="/analyses/recurrents" element={<Suspense fallback={<Loading />}><Analyses tab="recurring" /></Suspense>} />
+          <Route path="/plus" element={<More />} />
+          <Route path="/plus/categories" element={<Categories />} />
+          <Route path="/plus/regles" element={<Rules />} />
+          <Route path="/plus/comptes" element={<Accounts />} />
+          <Route path="/plus/imports" element={<ImportHistory />} />
+          <Route path="/plus/sauvegarde" element={<Backup />} />
+          <Route path="/plus/installer" element={<Install />} />
+          <Route path="/import" element={<ImportFlow />} />
+          <Route path="*" element={<Home />} />
+        </Routes>
+      </ErrorBoundary>
       {!fullScreen && <TabBar />}
     </div>
   );

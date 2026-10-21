@@ -1,6 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { Loading } from '../components/Loading';
 import { useToast } from '../components/toast';
 import { Amount, CatIcon, DoneBadge, Empty, Progress, Segmented, Sheet } from '../components/ui';
 import { db, type ColorKey, type Goal, type GoalContribution, type Transaction } from '../db/schema';
@@ -347,7 +348,7 @@ export default function Goals() {
   const open = goals?.find((g) => g.id === openId) ?? null;
   const totalPerMonth = (goals ?? []).reduce((s, g) => s + goalProgress(g, entriesById.get(g.id) ?? []).perMonth, 0);
 
-  if (!goals) return null;
+  if (!goals) return <Loading />;
   return (
     <>
       {goals.length === 0 ? (

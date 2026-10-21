@@ -73,7 +73,11 @@ function TabBar() {
 function Layout() {
   const location = useLocation();
   const fullScreen = location.pathname.startsWith('/import');
-  useEffect(() => window.scrollTo(0, 0), [location.pathname]);
+  // Corps en accolades : sur Chrome récent, scrollTo() renvoie une promesse que React
+  // prendrait pour la fonction de nettoyage de l'effet (« l is not a function »).
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
   return (
     <div className="app">
       <ErrorBoundary key={location.pathname}>

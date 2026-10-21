@@ -25,7 +25,9 @@ function BudgetSheet({
 }) {
   const [value, setValue] = useState('');
   const toast = useToast();
-  useEffect(() => setValue(centsToInput(category?.budgetCents)), [category]);
+  useEffect(() => {
+    setValue(centsToInput(category?.budgetCents));
+  }, [category]);
   if (!category) return null;
   const cents = parseAmount(value);
 

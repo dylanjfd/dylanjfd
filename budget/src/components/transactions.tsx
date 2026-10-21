@@ -158,7 +158,9 @@ export function TransactionSheet({ txId, onClose }: { txId: number | null; onClo
     setPicking(false);
     setSuggest(null);
   }, [txId]);
-  useEffect(() => setNote(tx?.note ?? ''), [tx?.id, tx?.note]);
+  useEffect(() => {
+    setNote(tx?.note ?? '');
+  }, [tx?.id, tx?.note]);
 
   if (txId == null) return null;
   const category = tx?.categoryId != null ? map.get(tx.categoryId) : undefined;
